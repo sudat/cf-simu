@@ -109,7 +109,7 @@
                 <div class="flex justify-between items-center mb-2">
                     <h2 class="text-lg font-semibold text-gray-800">現在のプラン</h2>
                     <button 
-                        onclick="openPlanModal()"
+                        onclick="openPlanManagementModal()"
                         class="bg-brand-500 border border-brand-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200 hover:-translate-y-0.5">
                         プラン変更
                     </button>
@@ -337,192 +337,6 @@
     </div>
 
     <!-- 収支項目管理モーダル (F002) -->
-    <div id="planModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 hidden">
-        <div class="glass-modal rounded-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div class="flex justify-between items-center p-4 border-b border-gray-200">
-                <h2 class="text-xl font-semibold">収支項目管理</h2>
-                <button onclick="closePlanModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
-            </div>
-            <div class="p-4">
-                <!-- 収入項目 -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-base font-semibold text-gray-800">収入</h3>
-                        <button onclick="addIncomeItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
-                            <i data-lucide="plus"></i>
-                        </button>
-                    </div>
-                    <div class="space-y-2" id="incomeItems">
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">給与</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('給与')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('給与', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">ボーナス</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('ボーナス')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('ボーナス', 'yearly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">年金</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('年金')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('年金', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 支出項目 -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-base font-semibold text-gray-800">支出</h3>
-                        <button onclick="addExpenseItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
-                            <i data-lucide="plus"></i>
-                        </button>
-                    </div>
-                    <div class="space-y-2" id="expenseItems">
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">住宅ローン</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('住宅ローン')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('住宅ローン', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">生活費</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('生活費')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('生活費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">学費</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('学費')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('学費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">医療費</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('医療費')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('医療費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 資産項目 -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-base font-semibold text-gray-800">資産</h3>
-                        <button onclick="addAssetItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
-                            <i data-lucide="plus"></i>
-                        </button>
-                    </div>
-                    <div class="space-y-2" id="assetItems">
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">預金</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('預金')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('預金', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">投資信託</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('投資信託')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('投資信託', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 負債項目 -->
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <h3 class="text-base font-semibold text-gray-800">負債</h3>
-                        <button onclick="addDebtItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
-                            <i data-lucide="plus"></i>
-                        </button>
-                    </div>
-                    <div class="space-y-2" id="debtItems">
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">住宅ローン残債</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('住宅ローン残債')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('住宅ローン残債', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
-                            <span class="text-gray-800">自動車ローン</span>
-                            <div class="flex gap-2">
-                                <button onclick="openPlanModal('自動車ローン')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
-                                </button>
-                                <button onclick="openAmountModal('自動車ローン', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
-                                    <i data-lucide="settings" class="w-4 h-4"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="flex gap-3 p-4 border-t border-gray-200">
-                <button onclick="closePlanModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
-                    キャンセル
-                </button>
-                <button onclick="applyPlan()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
-                    保存
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- 設定モーダル -->
     <div id="settingsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 60;">
@@ -667,7 +481,7 @@
                             <button onclick="selectPlan(this)" class="w-8 h-8 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 flex items-center justify-center">
                                 <i data-lucide="check" class="w-4 h-4"></i>
                             </button>
-                            <button class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                            <button onclick="openPlanDetailModal('デフォルトプラン')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
                                 <i data-lucide="edit" class="w-4 h-4"></i>
                             </button>
                             <!-- デフォルトプランは削除不可 -->
@@ -687,7 +501,12 @@
     <div id="addPlanModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 80;">
         <div class="glass-modal rounded-2xl w-full max-w-sm shadow-2xl">
             <div class="flex justify-between items-center p-4 border-b border-gray-200">
-                <h2 class="text-xl font-semibold">プラン追加</h2>
+                <div class="flex items-center gap-3">
+                    <button onclick="closeAddPlanModal()" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    </button>
+                    <h2 class="text-xl font-semibold">プラン追加</h2>
+                </div>
                 <button onclick="closeAddPlanModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
             </div>
             <div class="p-4">
@@ -705,6 +524,166 @@
                 </button>
                 <button onclick="confirmAddPlan()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
                     追加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- プラン詳細編集モーダル -->
+    <div id="planDetailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 90;">
+        <div class="glass-modal rounded-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    <button onclick="closePlanDetailModal()" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    </button>
+                    <h2 class="text-xl font-semibold" id="planDetailTitle">プラン詳細</h2>
+                </div>
+                <button onclick="closePlanDetailModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+            </div>
+            <div class="p-4">
+                <!-- 収入項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">収入</h3>
+                        <button onclick="addIncomeItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="incomeItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">給与</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('給与', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteIncomeItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">ボーナス</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('ボーナス', 'yearly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteIncomeItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 支出項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">支出</h3>
+                        <button onclick="addExpenseItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="expenseItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">住宅ローン</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('住宅ローン', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteExpenseItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">生活費</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('生活費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteExpenseItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 資産項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">資産</h3>
+                        <button onclick="addAssetItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="assetItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">預金</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('預金', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteAssetItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">投資信託</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('投資信託', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteAssetItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 負債項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">負債</h3>
+                        <button onclick="addDebtItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="debtItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">住宅ローン残債</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('住宅ローン残債', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteDebtItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">自動車ローン</span>
+                            <div class="flex gap-2">
+                                <button onclick="openAmountModal('自動車ローン', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteDebtItem(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closePlanDetailModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    キャンセル
+                </button>
+                <button onclick="savePlanDetail()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
+                    保存
                 </button>
             </div>
         </div>
@@ -856,13 +835,99 @@
             }
         }
         
-        function closePlanModal() {
-            document.getElementById('planModal').classList.add('hidden');
+        function openPlanManagementModal() {
+            document.getElementById('planManagementModal').classList.remove('hidden');
         }
         
-        function applyPlan() {
-            // プラン保存ロジック（実装時に追加）
-            closePlanModal();
+        function closePlanManagementModal() {
+            document.getElementById('planManagementModal').classList.add('hidden');
+        }
+        
+        function openPlanDetailModal(planName) {
+            document.getElementById('planDetailTitle').textContent = planName + ' - 詳細編集';
+            document.getElementById('planDetailModal').classList.remove('hidden');
+        }
+        
+        function closePlanDetailModal() {
+            document.getElementById('planDetailModal').classList.add('hidden');
+        }
+        
+        function savePlanDetail() {
+            // プラン詳細保存ロジック（実装時に追加）
+            closePlanDetailModal();
+        }
+        
+        function openAddPlanModal() {
+            document.getElementById('addPlanModal').classList.remove('hidden');
+        }
+        
+        function closeAddPlanModal() {
+            document.getElementById('addPlanModal').classList.add('hidden');
+        }
+        
+        function confirmAddPlan() {
+            const planName = document.getElementById('planNameInput').value;
+            if (planName.trim() === '') {
+                alert('プラン名を入力してください。');
+                return;
+            }
+            
+            // プラン追加ロジック
+            addPlanToList(planName);
+            
+            // モーダルを閉じる
+            closeAddPlanModal();
+            
+            // 入力フィールドをクリア
+            document.getElementById('planNameInput').value = '';
+        }
+        
+        function addPlanToList(planName) {
+            const planList = document.getElementById('planList');
+            const planDiv = document.createElement('div');
+            planDiv.className = 'flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl';
+            planDiv.innerHTML = `
+                <span class="text-gray-800">${planName}</span>
+                <div class="flex gap-2">
+                    <button onclick="selectPlan(this)" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-green-200 hover:text-green-700 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="openPlanDetailModal('${planName}')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="deletePlan(this)" class="w-8 h-8 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="trash" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            planList.appendChild(planDiv);
+            
+            // アイコンを再初期化
+            lucide.createIcons();
+        }
+        
+        function deleteIncomeItem(button) {
+            if (confirm('この収入項目を削除しますか？')) {
+                button.closest('.flex').remove();
+            }
+        }
+        
+        function deleteExpenseItem(button) {
+            if (confirm('この支出項目を削除しますか？')) {
+                button.closest('.flex').remove();
+            }
+        }
+        
+        function deleteAssetItem(button) {
+            if (confirm('この資産項目を削除しますか？')) {
+                button.closest('.flex').remove();
+            }
+        }
+        
+        function deleteDebtItem(button) {
+            if (confirm('この負債項目を削除しますか？')) {
+                button.closest('.flex').remove();
+            }
         }
         
         let currentSelectedPlan = 'デフォルトプラン';

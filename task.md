@@ -8,7 +8,7 @@ Pixel 8a 向けのモバイルファースト設計で、既存 `index.html` モ
 
 ## 主要タスク & サブタスク
 
-- [ ] **プロジェクト初期化**
+- [x] **プロジェクト初期化**
 
   - [ ] Node.js 18 以上を確認
   - [ ] `bun` 環境をセットアップ (`curl -fsSL https://bun.sh/install | bash`)
@@ -17,7 +17,7 @@ Pixel 8a 向けのモバイルファースト設計で、既存 `index.html` モ
   - [ ] Git 初期化 & `.gitignore` 生成
   - [ ] コミット規約 (Conventional Commits) ルールを追加
 
-- [ ] **TailwindCSS 4 設定**
+- [x] **TailwindCSS 4 設定**
 
   - [ ] `tailwindcss@^4` へアップグレード & PostCSS 8 依存解決
   - [ ] `tailwind.config.ts` → `content` に `app/**/*.{ts,tsx}` を追加
@@ -27,7 +27,7 @@ Pixel 8a 向けのモバイルファースト設計で、既存 `index.html` モ
     - [ ] backdropBlur (`xs`)
   - [ ] `globals.css` へ `@tailwind base/components/utilities` を追加
 
-- [ ] **Shadcn-ui CLI 導入**
+- [x] **Shadcn-ui CLI 導入**
 
   - [ ] `npm info shadcn version` で最新版を確認
   - [ ] `npx shadcn@latest init` を実行 (TypeScript, RSC = on, alias 設定)
@@ -39,7 +39,7 @@ Pixel 8a 向けのモバイルファースト設計で、既存 `index.html` モ
     - [ ] Tabs
     - [ ] Input / Label / Select
 
-- [ ] **レイアウト基盤作成**
+- [x] **レイアウト基盤作成**
 
   - [ ] `components/layout/AppShell.tsx` を作成
   - [ ] Header (`components/layout/Header.tsx`)
@@ -49,7 +49,7 @@ Pixel 8a 向けのモバイルファースト設計で、既存 `index.html` モ
     - [ ] Dashboard / Transition タブボタン
   - [ ] `app/layout.tsx` で AppShell へ children をラップ
 
-- [ ] **ダッシュボード画面 `/dashboard`**
+- [x] **ダッシュボード画面 `/dashboard`**
 
   - [ ] `app/(main)/dashboard/page.tsx` 生成
   - [ ] 現在プランカード (`components/dashboard/CurrentPlanCard.tsx`)
@@ -57,7 +57,7 @@ Pixel 8a 向けのモバイルファースト設計で、既存 `index.html` モ
   - [ ] 資産グラフ (`components/charts/AssetsChart.tsx`)
   - [ ] 期間セレクタ (`components/ui/PeriodSelector.tsx` + Popover)
 
-- [ ] **推移分析画面 `/transition`**
+- [x] **推移分析画面 `/transition`**
 
   - [ ] `app/(main)/transition/page.tsx` 生成
   - [ ] Header (プラン名表示 & Settings ボタン)
