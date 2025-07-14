@@ -15,16 +15,16 @@ export function CurrentPlanCard() {
     isDialogOpen, 
     closeDialog, 
     getDialogData,
+    goBack,
     DIALOG_IDS 
   } = usePlanDialogs();
 
-  const { getActivePlan, addPlan } = usePlanStore();
-  const activePlan = getActivePlan();
+  const { addPlan } = usePlanStore();
 
   return (
     <>
       <section className="bg-white/90 backdrop-blur-md border border-white/30 p-4 rounded-2xl shadow-lg">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-800">現在のプラン</h2>
           <Button 
             className="bg-brand-500 border border-brand-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200 hover:-translate-y-0.5"
@@ -33,7 +33,6 @@ export function CurrentPlanCard() {
             プラン変更
           </Button>
         </div>
-        <p className="text-gray-600">{activePlan?.name || "デフォルトプラン"}</p>
       </section>
 
       <PlanDialog
@@ -49,8 +48,8 @@ export function CurrentPlanCard() {
         onSettingsItem={(itemId) => {
           alert(`${itemId}の金額設定機能を実装中です`);
         }}
-        onAddItem={(category) => {
-          alert(`${category}カテゴリの項目追加機能を実装中です`);
+        onAddItem={() => {
+          // 項目追加機能（実装予定）
         }}
       />
 
@@ -75,7 +74,7 @@ export function CurrentPlanCard() {
         itemName={(getDialogData(DIALOG_IDS.ADD_PLAN) as { itemName?: string })?.itemName || "項目"}
         onAdd={(data) => {
           addPlan(data.planName);
-          closeDialog(DIALOG_IDS.ADD_PLAN);
+          goBack();
         }}
       />
     </>

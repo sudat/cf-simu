@@ -16,6 +16,7 @@ export function TransitionHeader() {
     isDialogOpen, 
     closeDialog, 
     getDialogData,
+    goBack,
     DIALOG_IDS 
   } = usePlanDialogs();
   
@@ -49,8 +50,8 @@ export function TransitionHeader() {
         onSettingsItem={(itemId) => {
           alert(`${itemId}の金額設定機能を実装中です`);
         }}
-        onAddItem={(category) => {
-          alert(`${category}カテゴリの項目追加機能を実装中です`);
+        onAddItem={() => {
+          // 項目追加機能（実装予定）
         }}
       />
 
@@ -75,7 +76,7 @@ export function TransitionHeader() {
         itemName={(getDialogData(DIALOG_IDS.ADD_PLAN) as { itemName?: string })?.itemName || "項目"}
         onAdd={(data) => {
           addPlan(data.planName);
-          closeDialog(DIALOG_IDS.ADD_PLAN);
+          goBack();
         }}
       />
     </>
