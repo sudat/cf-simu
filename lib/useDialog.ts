@@ -106,7 +106,7 @@ export function useDialog(): UseDialogReturn {
       const parentDialog = dialogs[parentDialogId];
       if (!parentDialog || !parentDialog.isOpen) {
         console.warn(`Parent dialog ${parentDialogId} is not open`);
-        return;
+        return false;
       }
 
       // 履歴に親ダイアログを追加
@@ -135,6 +135,8 @@ export function useDialog(): UseDialogReturn {
           level: parentDialog.level + 1,
         },
       }));
+      
+      return true;
     },
     [dialogs]
   );

@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Plus, Clipboard, Settings } from "lucide-react";
+import { Plus, List, Settings } from "lucide-react";
 import {
   CategoryType,
   AddItemData,
@@ -150,7 +150,7 @@ export function PlanDialog({
                   onClick={() => onManagePlans?.(item.id)}
                   title="プラン設定"
                 >
-                  <Clipboard className="w-4 h-4" />
+                  <List className="w-4 h-4" />
                 </Button>
                 <Button
                   size="sm"
@@ -178,18 +178,11 @@ export function PlanDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-sm max-h-[80vh] overflow-y-auto glass-modal rounded-2xl shadow-2xl"
-        showCloseButton={false}
       >
-        <DialogHeader className="flex justify-between items-center p-4 border-b border-gray-200">
+        <DialogHeader className="p-4 border-b border-gray-200">
           <DialogTitle className="text-xl font-semibold">
             収支項目管理
           </DialogTitle>
-          <button
-            onClick={handleCancel}
-            className="text-2xl text-gray-600 hover:text-gray-800 p-1"
-          >
-            ×
-          </button>
         </DialogHeader>
 
         <div className="p-4">

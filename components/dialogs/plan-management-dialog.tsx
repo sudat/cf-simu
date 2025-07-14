@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,163 +11,289 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Check, Edit, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Plus, CheckCircle, Edit, Trash2, X, Check, AlertCircle } from "lucide-react";
+import { usePlanStore } from "@/lib/store/plan-store";
 
 interface PlanManagementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   itemName?: string;
-  plans?: string[];
-  activePlan?: string;
-  onSelectPlan?: (planName: string) => void;
   onAddPlan?: () => void;
-  onEditPlan?: (planName: string) => void;
-  onDeletePlan?: (planName: string) => void;
 }
 
-// サンプルデータ（後で実際のデータに置き換え）
-const samplePlans = ["デフォルトプラン", "積極投資プラン", "コンサバプラン"];
+// 削除確認ダイアログ
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  planName: string;
+  onConfirm: () => void;
+}
+
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  planName,
+  onConfirm,
+}: DeleteConfirmDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>プラン削除の確認</DialogTitle>
+          <DialogDescription>
+            「{planName}」を削除しますか？
+            <br />
+            この操作は取り消せません。
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            キャンセル
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            削除
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function PlanManagementDialog({
   open,
   onOpenChange,
   itemName = "項目",
-  plans = samplePlans,
-  activePlan = "デフォルトプラン",
-  onSelectPlan,
   onAddPlan,
-  onEditPlan,
-  onDeletePlan,
 }: PlanManagementDialogProps) {
-  const [selectedPlan, setSelectedPlan] = useState(activePlan);
+  const {
+    globalPlans,
+    deletePlan,
+    renamePlan,
+    setActivePlan,
+  } = usePlanStore();
 
-  const handleSelectPlan = (planName: string) => {
-    setSelectedPlan(planName);
-    onSelectPlan?.(planName);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  // プラン選択
+  const handleSelectPlan = (planId: string) => {
+    setActivePlan(planId);
   };
 
-  const handleDeletePlan = (planName: string) => {
-    if (planName === "デフォルトプラン") {
-      // デフォルトプランは削除不可
-      return;
-    }
+  // インライン編集開始
+  const handleEditStart = (planId: string, currentName: string) => {
+    setEditingPlanId(planId);
+    setEditingName(currentName);
+  };
 
-    if (confirm(`「${planName}」を削除しますか？`)) {
-      onDeletePlan?.(planName);
-
-      // 削除しようとしているプランが選択中の場合、デフォルトプランに戻す
-      if (selectedPlan === planName) {
-        setSelectedPlan("デフォルトプラン");
-        onSelectPlan?.("デフォルトプラン");
-      }
+  // インライン編集確定
+  const handleEditConfirm = () => {
+    if (editingPlanId && editingName.trim()) {
+      renamePlan(editingPlanId, editingName.trim());
     }
+    setEditingPlanId(null);
+    setEditingName("");
+  };
+
+  // インライン編集キャンセル
+  const handleEditCancel = () => {
+    setEditingPlanId(null);
+    setEditingName("");
+  };
+
+  // 削除確認ダイアログ表示
+  const handleDeleteStart = (planId: string, planName: string) => {
+    setPlanToDelete({ id: planId, name: planName });
+    setDeleteConfirmOpen(true);
+  };
+
+  // 削除実行
+  const handleDeleteConfirm = () => {
+    if (planToDelete) {
+      deletePlan(planToDelete.id);
+      setPlanToDelete(null);
+    }
+    setDeleteConfirmOpen(false);
+  };
+
+  // 新規プラン追加
+  const handleAddPlan = () => {
+    onAddPlan?.();
   };
 
   const handleClose = () => {
+    // 編集中の場合はキャンセル
+    if (editingPlanId) {
+      handleEditCancel();
+    }
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{itemName} - プラン管理</DialogTitle>
-          <DialogDescription>
-            この項目に設定するプランを選択してください
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{itemName} - プラン管理</DialogTitle>
+            <DialogDescription>
+              この項目に設定するプランを選択してください
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="flex justify-end mb-4">
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 bg-blue-500 text-white hover:bg-blue-600"
-            onClick={onAddPlan}
-            title="プラン追加"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
+          <div className="flex justify-end mb-4">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 bg-blue-500 text-white hover:bg-blue-600"
+              onClick={handleAddPlan}
+              title="プラン追加"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
 
-        <div className="space-y-3 py-4">
-          {plans.map((planName) => {
-            const isSelected = selectedPlan === planName;
-            const isDefault = planName === "デフォルトプラン";
-
-            return (
-              <Card
-                key={planName}
-                className={`cursor-pointer transition-colors border ${
-                  isSelected
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:bg-gray-50"
-                }`}
-                onClick={() => handleSelectPlan(planName)}
-              >
-                <CardContent className="flex items-center justify-between p-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        isSelected
-                          ? "border-blue-500 bg-blue-500"
-                          : "border-gray-300"
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3 h-3 text-white" />}
-                    </div>
-                    <span
-                      className={`font-medium ${
-                        isSelected ? "text-blue-700" : "text-gray-800"
-                      }`}
-                    >
-                      {planName}
-                    </span>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditPlan?.(planName);
-                      }}
-                      title="編集"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    {!isDefault && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 bg-red-100 text-red-700 hover:bg-red-200"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePlan(planName);
-                        }}
-                        title="削除"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          {plans.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              プランがありません
+          {(localError || lastError) && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-3">
+              <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-800">{localError || lastError}</p>
             </div>
           )}
-        </div>
 
-        <DialogFooter>
-          <Button onClick={handleClose}>閉じる</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <div className="space-y-3 py-4">
+            {globalPlans.map((plan) => {
+              const isActive = plan.isActive;
+              const isDefault = plan.isDefault;
+              const isEditing = editingPlanId === plan.id;
+
+              return (
+                <Card
+                  key={plan.id}
+                  className={`transition-colors border ${
+                    isActive
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:bg-gray-50"
+                  } ${isEditing ? "ring-2 ring-blue-300" : ""}`}
+                  onClick={() => !isEditing && handleSelectPlan(plan.id)}
+                >
+                  <CardContent className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div
+                        className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                          isActive
+                            ? "text-blue-500"
+                            : "text-gray-300"
+                        }`}
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </div>
+                      
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            className="h-8 text-sm"
+                            placeholder="プラン名を入力"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleEditConfirm();
+                              } else if (e.key === "Escape") {
+                                handleEditCancel();
+                              }
+                            }}
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 bg-green-100 text-green-700 hover:bg-green-200"
+                            onClick={handleEditConfirm}
+                            title="確定"
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            onClick={handleEditCancel}
+                            title="キャンセル"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span
+                          className={`font-medium ${
+                            isActive ? "text-blue-700" : "text-gray-800"
+                          }`}
+                        >
+                          {plan.name}
+                        </span>
+                      )}
+                    </div>
+
+                    {!isEditing && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditStart(plan.id, plan.name);
+                          }}
+                          title="編集"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        {!isDefault && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 bg-red-100 text-red-700 hover:bg-red-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteStart(plan.id, plan.name);
+                            }}
+                            title="削除"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+
+            {globalPlans.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                プランがありません
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={handleClose}>閉じる</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 削除確認ダイアログ */}
+      <DeleteConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        planName={planToDelete?.name || ""}
+        onConfirm={handleDeleteConfirm}
+      />
+    </>
   );
 }

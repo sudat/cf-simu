@@ -4,10 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Settings } from "lucide-react";
 import { usePlanDialogs } from "@/lib/useDialog";
 import { PlanDialog } from "@/components/dialogs/plan-dialog";
+import { PlanManagementDialog } from "@/components/dialogs/plan-management-dialog";
 
 export function TransitionHeader() {
-  const currentPlan = "デフォルトプラン"; // TODO: 後でstate管理から取得
-  const { openPlanMain, isDialogOpen, closeDialog, DIALOG_IDS } = usePlanDialogs();
+  const { 
+    openPlanMain, 
+    openPlanManagement, 
+    openAddPlan,
+    isDialogOpen, 
+    closeDialog, 
+    getDialogData,
+    DIALOG_IDS 
+  } = usePlanDialogs();
 
   return (
     <>
@@ -19,7 +27,7 @@ export function TransitionHeader() {
             onClick={openPlanMain}
           >
             <Settings className="w-4 h-4" />
-            <span>{currentPlan}</span>
+            <span>プラン変更</span>
           </Button>
         </div>
       </section>
@@ -30,7 +38,9 @@ export function TransitionHeader() {
           if (!open) closeDialog(DIALOG_IDS.PLAN_MAIN);
         }}
         onManagePlans={(itemId) => {
-          alert(`${itemId}のプラン設定機能を実装中です`);
+          // 項目IDから項目名を取得 (実際の実装では適切な方法で取得)
+          const itemName = itemId.split('-').slice(1).join('-');
+          openPlanManagement(itemId, itemName);
         }}
         onSettingsItem={(itemId) => {
           alert(`${itemId}の金額設定機能を実装中です`);
@@ -38,6 +48,15 @@ export function TransitionHeader() {
         onAddItem={(category) => {
           alert(`${category}カテゴリの項目追加機能を実装中です`);
         }}
+      />
+
+      <PlanManagementDialog
+        open={isDialogOpen(DIALOG_IDS.PLAN_MANAGEMENT)}
+        onOpenChange={(open) => {
+          if (!open) closeDialog(DIALOG_IDS.PLAN_MANAGEMENT);
+        }}
+        itemName={(getDialogData(DIALOG_IDS.PLAN_MANAGEMENT) as { itemName?: string })?.itemName || "項目"}
+        onAddPlan={() => openAddPlan("", "")}
       />
     </>
   );

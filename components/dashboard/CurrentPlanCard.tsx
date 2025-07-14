@@ -3,9 +3,22 @@
 import { Button } from "@/components/ui/button";
 import { usePlanDialogs } from "@/lib/useDialog";
 import { PlanDialog } from "@/components/dialogs/plan-dialog";
+import { PlanManagementDialog } from "@/components/dialogs/plan-management-dialog";
+import { usePlanStore } from "@/lib/store/plan-store";
 
 export function CurrentPlanCard() {
-  const { openPlanMain, isDialogOpen, closeDialog, DIALOG_IDS } = usePlanDialogs();
+  const { 
+    openPlanMain, 
+    openPlanManagement, 
+    openAddPlan,
+    isDialogOpen, 
+    closeDialog, 
+    getDialogData,
+    DIALOG_IDS 
+  } = usePlanDialogs();
+
+  const { getActivePlan } = usePlanStore();
+  const activePlan = getActivePlan();
 
   return (
     <>
@@ -19,7 +32,7 @@ export function CurrentPlanCard() {
             プラン変更
           </Button>
         </div>
-        <p className="text-gray-600">デフォルトプラン</p>
+        <p className="text-gray-600">{activePlan?.name || "デフォルトプラン"}</p>
       </section>
 
       <PlanDialog
@@ -28,7 +41,9 @@ export function CurrentPlanCard() {
           if (!open) closeDialog(DIALOG_IDS.PLAN_MAIN);
         }}
         onManagePlans={(itemId) => {
-          alert(`${itemId}のプラン設定機能を実装中です`);
+          // 項目IDから項目名を取得 (実際の実装では適切な方法で取得)
+          const itemName = itemId.split('-').slice(1).join('-');
+          openPlanManagement(itemId, itemName);
         }}
         onSettingsItem={(itemId) => {
           alert(`${itemId}の金額設定機能を実装中です`);
@@ -36,6 +51,15 @@ export function CurrentPlanCard() {
         onAddItem={(category) => {
           alert(`${category}カテゴリの項目追加機能を実装中です`);
         }}
+      />
+
+      <PlanManagementDialog
+        open={isDialogOpen(DIALOG_IDS.PLAN_MANAGEMENT)}
+        onOpenChange={(open) => {
+          if (!open) closeDialog(DIALOG_IDS.PLAN_MANAGEMENT);
+        }}
+        itemName={(getDialogData(DIALOG_IDS.PLAN_MANAGEMENT) as { itemName?: string })?.itemName || "項目"}
+        onAddPlan={() => openAddPlan("", "")}
       />
     </>
   );

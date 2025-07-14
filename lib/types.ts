@@ -121,3 +121,11 @@ export interface AmountSettingData {
   planName: string;
   setting: FlowItemDetail | StockItemDetail;
 }
+
+// プラン定義
+export interface PlanDefinition {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  isActive: boolean;
+}
