@@ -21,7 +21,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { Calendar } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { motion } from "framer-motion";
 
 const chartConfig = {
@@ -46,7 +46,7 @@ export function AssetsChart() {
   // サンプルデータ生成（積み重ね用）
   const generateChartData = (years: number) => {
     const data = [];
-    const currentYear = 2024;
+    const currentYear = 2025;
 
     for (let i = 0; i <= years; i++) {
       const year = currentYear + i;
@@ -71,15 +71,14 @@ export function AssetsChart() {
       initial={{ opacity: 0, y: 40 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="bg-white/90 backdrop-blur-md border border-white/30 shadow-lg"
+      className="bg-white/90 backdrop-blur-md border border-white/30 shadow-lg gap-4"
     >
-      <CardHeader>
+      <CardHeader className="px-4">
         <div className="flex justify-between items-center">
           <div>
             <CardTitle className="text-lg font-semibold text-gray-800">
-              資産推移予測
+              資産
             </CardTitle>
-            <CardDescription>資産と負債の将来予測</CardDescription>
           </div>
           <div className="flex gap-2 items-center">
             <div className="text-sm text-gray-600">{period}年間</div>
@@ -119,13 +118,13 @@ export function AssetsChart() {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4">
         <ChartContainer config={chartConfig} className="h-64 w-full">
           <AreaChart
             accessibilityLayer
             data={chartData}
             margin={{
-              left: 12,
+              left: 30,
               right: 12,
             }}
           >
@@ -136,6 +135,20 @@ export function AssetsChart() {
               axisLine={false}
               tickMargin={8}
               tickFormatter={(value) => value.slice(-2)}
+              interval={
+                period <= 5 ? 0 : period <= 10 ? 1 : period <= 20 ? 2 : 4
+              }
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={2}
+              width={20}
+              tickFormatter={(value) =>
+                `${Math.round(Number(value) / 1000) * 1000}万円`
+              }
+              tick={{ fontSize: 10 }}
             />
             <ChartTooltip
               cursor={false}
