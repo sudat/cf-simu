@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { usePlanDialogs } from "@/lib/useDialog";
 import { PlanDialog } from "@/components/dialogs/plan-dialog";
 import { PlanManagementDialog } from "@/components/dialogs/plan-management-dialog";
+import { AddPlanDialog } from "@/components/dialogs/add-plan-dialog";
 import { usePlanStore } from "@/lib/store/plan-store";
 
 export function CurrentPlanCard() {
@@ -17,7 +18,7 @@ export function CurrentPlanCard() {
     DIALOG_IDS 
   } = usePlanDialogs();
 
-  const { getActivePlan } = usePlanStore();
+  const { getActivePlan, addPlan } = usePlanStore();
   const activePlan = getActivePlan();
 
   return (
@@ -59,7 +60,23 @@ export function CurrentPlanCard() {
           if (!open) closeDialog(DIALOG_IDS.PLAN_MANAGEMENT);
         }}
         itemName={(getDialogData(DIALOG_IDS.PLAN_MANAGEMENT) as { itemName?: string })?.itemName || "項目"}
-        onAddPlan={() => openAddPlan("", "")}
+        onAddPlan={() => {
+          const data = getDialogData(DIALOG_IDS.PLAN_MANAGEMENT) as { itemId?: string; itemName?: string };
+          openAddPlan(data?.itemId || "", data?.itemName || "");
+        }}
+      />
+
+      <AddPlanDialog
+        open={isDialogOpen(DIALOG_IDS.ADD_PLAN)}
+        onOpenChange={(open) => {
+          if (!open) closeDialog(DIALOG_IDS.ADD_PLAN);
+        }}
+        itemId={(getDialogData(DIALOG_IDS.ADD_PLAN) as { itemId?: string })?.itemId || ""}
+        itemName={(getDialogData(DIALOG_IDS.ADD_PLAN) as { itemName?: string })?.itemName || "項目"}
+        onAdd={(data) => {
+          addPlan(data.planName);
+          closeDialog(DIALOG_IDS.ADD_PLAN);
+        }}
       />
     </>
   );
