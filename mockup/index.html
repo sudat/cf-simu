@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャッシュフローシミュレーター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    backdropBlur: {
+                        xs: '2px',
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-4px)' },
+                        }
+                    },
+                    colors: {
+                        'brand': {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca'
+                        },
+                        'success': {
+                            500: '#059669',
+                            600: '#047857'
+                        },
+                        'danger': {
+                            500: '#dc2626',
+                            600: '#b91c1c'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .glass-light {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .glass-modal {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        /* テキスト切り捨て用のスタイル */
+        .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* モバイル最適化：テーブルセル幅制限 */
+        .max-w-0 {
+            max-width: 0;
+            width: 40%; /* スマートフォンでの項目名欄の幅を制限 */
+        }
+        
+        @media (min-width: 640px) {
+            .max-w-0 {
+                width: 50%; /* タブレット以上では少し広く */
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- メインダッシュボード画面 (F001) -->
+    <div id="dashboardScreen" class="max-w-sm mx-auto glass min-h-screen flex flex-col shadow-2xl">
+        <!-- ヘッダー -->
+        <header class="glass-light border-b border-gray-200 text-gray-800 p-4 flex justify-between items-center sticky top-0 z-50">
+            <h1 class="text-2xl font-bold text-gray-800">CF Simulator</h1>
+            <div class="flex gap-2">
+                <button class="w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-lg flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5">
+                    <i data-lucide="share" class="w-5 h-5 text-gray-600"></i>
+                </button>
+                <button class="w-10 h-10 bg-gray-200 hover:bg-gray-300 rounded-lg flex items-center justify-center transition-all duration-200 hover:-translate-y-0.5">
+                    <i data-lucide="menu" class="w-5 h-5 text-gray-600"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 p-4 pb-20">
+
+            <!-- アクティブプラン表示 -->
+            <section class="glass p-4 rounded-2xl mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-lg font-semibold text-gray-800">現在のプラン</h2>
+                    <button 
+                        onclick="openPlanModal()"
+                        class="bg-brand-500 border border-brand-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200 hover:-translate-y-0.5">
+                        プラン変更
+                    </button>
+                </div>
+            </section>
+
+            <!-- 収支グラフ -->
+            <section class="glass p-6 rounded-2xl mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">収支推移予測</h2>
+                    <div class="flex gap-2">
+                        <div class="text-sm text-gray-600" id="cashflowPeriodText">10年間</div>
+                        <button onclick="togglePeriodSelector('cashflow')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="cashflowPeriodSelector" class="hidden mb-3">
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="setPeriod('cashflow', 5)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">5年</button>
+                        <button onclick="setPeriod('cashflow', 10)" class="bg-brand-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-brand-600 transition-all duration-200">10年</button>
+                        <button onclick="setPeriod('cashflow', 20)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">20年</button>
+                        <button onclick="setPeriod('cashflow', 30)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">30年</button>
+                        <button onclick="setPeriod('cashflow', 50)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">50年</button>
+                    </div>
+                </div>
+                <div class="w-full h-48 mb-4">
+                    <div class="glass-light w-full h-full rounded-xl p-4">
+                        <svg viewBox="0 0 400 200" class="w-full h-full" id="cashflowChart">
+                            <!-- 背景グリッド -->
+                            <defs>
+                                <pattern id="grid1" width="40" height="20" patternUnits="userSpaceOnUse">
+                                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#grid1)" />
+                            
+                            <!-- ゼロライン（中央基準線） -->
+                            <line x1="20" y1="100" x2="380" y2="100" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-dasharray="5,5" />
+                            
+                            <!-- 収入エリア（上部） -->
+                            <polygon id="incomeAreaChart" fill="rgba(5, 150, 105, 0.2)" stroke="#059669" stroke-width="2" 
+                                points="20,100 60,85 100,80 140,75 180,70 220,65 260,60 300,55 340,50 380,45 380,100 20,100" />
+                            
+                            <!-- 支出エリア（下部・鏡面） -->
+                            <polygon id="expenseAreaChart" fill="rgba(220, 38, 38, 0.2)" stroke="#dc2626" stroke-width="2" 
+                                points="20,100 60,115 100,120 140,125 180,130 220,135 260,140 300,145 340,150 380,155 380,100 20,100" />
+                            
+                            <!-- 軸ラベル -->
+                            <text id="cashflowYear1" x="20" y="195" font-size="10" fill="#6B7280">2024</text>
+                            <text id="cashflowYear2" x="200" y="195" font-size="10" fill="#6B7280">2029</text>
+                            <text id="cashflowYear3" x="380" y="195" font-size="10" fill="#6B7280">2034</text>
+                            
+                            <!-- Y軸ラベル -->
+                            <text x="10" y="45" font-size="9" fill="#6B7280" text-anchor="middle">+</text>
+                            <text x="10" y="105" font-size="9" fill="#6B7280" text-anchor="middle">0</text>
+                            <text x="10" y="165" font-size="9" fill="#6B7280" text-anchor="middle">-</text>
+                            
+                            <!-- 凡例 -->
+                            <text x="320" y="25" font-size="10" fill="#059669">■ 収入</text>
+                            <text x="320" y="40" font-size="10" fill="#dc2626">■ 支出</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 資産・負債グラフ -->
+            <section class="glass p-6 rounded-2xl mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">資産・負債推移予測</h2>
+                    <div class="flex gap-2">
+                        <div class="text-sm text-gray-600" id="assetsPeriodText">10年間</div>
+                        <button onclick="togglePeriodSelector('assets')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="assetsPeriodSelector" class="hidden mb-3">
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="setPeriod('assets', 5)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">5年</button>
+                        <button onclick="setPeriod('assets', 10)" class="bg-brand-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-brand-600 transition-all duration-200">10年</button>
+                        <button onclick="setPeriod('assets', 20)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">20年</button>
+                        <button onclick="setPeriod('assets', 30)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">30年</button>
+                        <button onclick="setPeriod('assets', 50)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">50年</button>
+                    </div>
+                </div>
+                <div class="w-full h-48 mb-4">
+                    <div class="glass-light w-full h-full rounded-xl p-4">
+                        <svg viewBox="0 0 400 200" class="w-full h-full" id="assetsChart">
+                            <!-- 背景グリッド -->
+                            <defs>
+                                <pattern id="grid2" width="40" height="20" patternUnits="userSpaceOnUse">
+                                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                                </pattern>
+                            </defs>
+                            <rect width="100%" height="100%" fill="url(#grid2)" />
+                            
+                            <!-- ゼロライン（中央基準線）-->
+                            <line x1="20" y1="100" x2="380" y2="100" stroke="rgba(107, 114, 128, 0.5)" stroke-width="2" stroke-dasharray="5,5" />
+                            
+                            <!-- 資産エリア（上部・正の値）-->
+                            <polygon id="assetsAreaChart" fill="rgba(5, 150, 105, 0.3)" stroke="#059669" stroke-width="2" 
+                                points="20,100 60,90 100,80 140,70 180,60 220,50 260,40 300,30 340,20 380,10 380,100 20,100" />
+                            
+                            <!-- 負債エリア（下部・負の値）-->
+                            <polygon id="debtsAreaChart" fill="rgba(245, 158, 11, 0.3)" stroke="#F59E0B" stroke-width="2" 
+                                points="20,100 60,110 100,120 140,130 180,140 220,150 260,160 300,170 340,180 380,190 380,100 20,100" />
+                            
+                            <!-- 軸ラベル -->
+                            <text id="assetsYear1" x="20" y="195" font-size="10" fill="#6B7280">2024</text>
+                            <text id="assetsYear2" x="200" y="195" font-size="10" fill="#6B7280">2029</text>
+                            <text id="assetsYear3" x="380" y="195" font-size="10" fill="#6B7280">2034</text>
+                            
+                            <!-- ゼロラインラベル -->
+                            <text x="5" y="105" font-size="8" fill="#6B7280">￥0</text>
+                            
+                            <!-- 凡例 -->
+                            <text x="320" y="25" font-size="10" fill="#059669">■ 資産</text>
+                            <text x="320" y="40" font-size="10" fill="#F59E0B">■ 負債</text>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- 推移画面 -->
+    <div id="transitionScreen" class="max-w-sm mx-auto glass min-h-screen flex-col shadow-2xl hidden">
+        <!-- ヘッダー -->
+        <header class="glass-light border-b border-gray-200 text-gray-800 p-4 flex justify-between items-center sticky top-0 z-50">
+            <h1 class="text-2xl font-bold text-gray-800">推移分析</h1>
+            <button onclick="openPlanModal()" class="bg-brand-500 border border-brand-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-brand-600 transition-all duration-200 hover:-translate-y-0.5 flex items-center gap-1">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+                <span id="currentPlanHeader">デフォルトプラン</span>
+            </button>
+        </header>
+
+        <main class="flex-1 p-4 pb-20 overflow-y-auto">
+            <!-- 年度選択 -->
+            <section class="glass p-4 rounded-2xl mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">表示期間</h2>
+                    <div class="flex gap-2">
+                        <div class="text-sm text-gray-600" id="transitionPeriodText">10年間</div>
+                        <button onclick="toggleTransitionPeriodSelector()" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="calendar" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="transitionPeriodSelector" class="hidden mb-3">
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="setTransitionPeriod(5)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">5年</button>
+                        <button onclick="setTransitionPeriod(10)" class="bg-brand-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-brand-600 transition-all duration-200">10年</button>
+                        <button onclick="setTransitionPeriod(20)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">20年</button>
+                        <button onclick="setTransitionPeriod(30)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">30年</button>
+                        <button onclick="setTransitionPeriod(50)" class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200">50年</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 収支セクション -->
+            <section class="glass p-4 rounded-2xl mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold text-gray-800">収支</h2>
+                    <button onclick="toggleSection('plSection')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div id="plSection" class="overflow-x-auto">
+                    <table class="w-full text-sm" id="plTable">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left py-2 px-2 font-medium text-gray-700">項目</th>
+                                <th class="text-right py-2 px-2 font-medium text-gray-700">2024</th>
+                                <th class="text-right py-2 px-2 font-medium text-gray-700">2025</th>
+                                <th class="text-right py-2 px-2 font-medium text-gray-700">2026</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plTableBody">
+                            <!-- 動的に生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 資産・負債セクション -->
+            <section class="glass p-4 rounded-2xl mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold text-gray-800">資産・負債</h2>
+                    <button onclick="toggleSection('bsSection')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div id="bsSection" class="overflow-x-auto">
+                    <table class="w-full text-sm" id="bsTable">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left py-2 px-2 font-medium text-gray-700">項目</th>
+                                <th class="text-right py-2 px-2 font-medium text-gray-700">2024</th>
+                                <th class="text-right py-2 px-2 font-medium text-gray-700">2025</th>
+                                <th class="text-right py-2 px-2 font-medium text-gray-700">2026</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bsTableBody">
+                            <!-- 動的に生成 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+        <!-- ボトムナビゲーション -->
+        <nav class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-white/90 backdrop-blur-xl border-t border-gray-200 flex shadow-2xl">
+            <button onclick="showScreen('dashboard')" id="dashboardBtn" class="flex-1 flex flex-col items-center py-3 text-brand-600">
+                <i data-lucide="bar-chart-3" class="w-6 h-6 mb-1"></i>
+                <span class="text-xs font-medium">ダッシュボード</span>
+            </button>
+            <button onclick="showScreen('transition')" id="transitionBtn" class="flex-1 flex flex-col items-center py-3 text-gray-500 hover:text-gray-700 transition-colors">
+                <i data-lucide="trending-up" class="w-6 h-6 mb-1"></i>
+                <span class="text-xs font-medium">推移</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- 収支項目管理モーダル (F002) -->
+    <div id="planModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 hidden">
+        <div class="glass-modal rounded-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold">収支項目管理</h2>
+                <button onclick="closePlanModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+            </div>
+            <div class="p-4">
+                <!-- 収入項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">収入</h3>
+                        <button onclick="addIncomeItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="incomeItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">給与</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('給与')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('給与', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">ボーナス</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('ボーナス')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('ボーナス', 'yearly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">年金</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('年金')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('年金', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 支出項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">支出</h3>
+                        <button onclick="addExpenseItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="expenseItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">住宅ローン</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('住宅ローン')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('住宅ローン', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">生活費</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('生活費')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('生活費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">学費</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('学費')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('学費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">医療費</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('医療費')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('医療費', 'monthly')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 資産項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">資産</h3>
+                        <button onclick="addAssetItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="assetItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">預金</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('預金')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('預金', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">投資信託</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('投資信託')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('投資信託', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 負債項目 -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-base font-semibold text-gray-800">負債</h3>
+                        <button onclick="addDebtItem()" class="w-8 h-8 bg-brand-500 text-white rounded-lg text-sm hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-2" id="debtItems">
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">住宅ローン残債</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('住宅ローン残債')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('住宅ローン残債', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                            <span class="text-gray-800">自動車ローン</span>
+                            <div class="flex gap-2">
+                                <button onclick="openPlanModal('自動車ローン')" class="w-8 h-8 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openAmountModal('自動車ローン', 'current')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closePlanModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    キャンセル
+                </button>
+                <button onclick="applyPlan()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定モーダル -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 60;">
+        <div class="glass-modal rounded-2xl w-full max-w-sm shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold" id="settingsModalTitle">設定</h2>
+                <button onclick="closeSettingsModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+            </div>
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">現在のプラン</label>
+                    <div class="w-full p-3 bg-gray-100 border border-gray-300 rounded-xl text-gray-800" id="currentPlanDisplay">
+                        デフォルトプラン
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <button onclick="openAmountModalFromSettings()" class="w-full bg-brand-500 text-white p-3 rounded-xl hover:bg-brand-600 transition-all duration-200">
+                        金額設定を編集
+                    </button>
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closeSettingsModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 金額設定モーダル -->
+    <div id="amountModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 70;">
+        <div class="glass-modal rounded-2xl w-full max-w-sm shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold" id="amountModalTitle">金額設定</h2>
+                <button onclick="closeAmountModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+            </div>
+            <div class="p-4">
+                <!-- フロー項目（収入・支出）用フォーム -->
+                <div id="flowForm">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">開始年度 (4/1～)</label>
+                        <input type="number" id="startYear" value="2024" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">終了年度 (～3/31) <span class="text-xs text-gray-500">※空欄で永続</span></label>
+                        <input type="number" id="endYear" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="未入力で永続">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">支払い頻度</label>
+                        <div class="flex gap-4 mb-3">
+                            <label class="flex items-center">
+                                <input type="radio" name="frequency" value="monthly" checked class="mr-2">
+                                <span class="text-sm text-gray-700">月額</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="frequency" value="yearly" class="mr-2">
+                                <span class="text-sm text-gray-700">年額</span>
+                            </label>
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-gray-500">¥</span>
+                            <input type="number" id="amountInput" class="w-full pl-8 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">年率増減 <span class="text-xs text-gray-500">※空欄で変動なし</span></label>
+                        <div class="relative">
+                            <input type="number" id="flowRate" step="0.1" class="w-full pr-8 pl-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例: 3 (年3%増の場合)">
+                            <span class="absolute right-3 top-3 text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                        <span id="periodDisplay">例: 2025-2028 → 2025/4/1～2029/3/31</span>
+                    </div>
+                </div>
+
+                <!-- ストック項目（資産・負債）用フォーム -->
+                <div id="stockForm" style="display: none;">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">基準年度</label>
+                        <input type="number" id="stockBaseYear" value="2024" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">基準時点の金額</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-gray-500">¥</span>
+                            <input type="number" id="stockBaseAmount" class="w-full pl-8 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">年率増減 <span class="text-xs text-gray-500">※空欄で変動なし</span></label>
+                        <div class="relative">
+                            <input type="number" id="stockRate" step="0.1" class="w-full pr-8 pl-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例: 10 (10%の場合)">
+                            <span class="absolute right-3 top-3 text-gray-500">%</span>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">年額増減 <span class="text-xs text-gray-500">※空欄で変動なし</span></label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-gray-500">¥</span>
+                            <input type="number" id="stockYearlyChange" class="w-full pl-8 pr-3 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="例: 1200000 (年120万積立)、-1200000 (年120万減少)">
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                        <div id="stockCalculationDisplay">
+                            <div class="mb-1"><strong>計算例:</strong></div>
+                            <div>2024/4/1: 2000万円</div>
+                            <div>2025/3/31: 2000×1.10-120 = 2080万円</div>
+                            <div>2026/3/31: 2080×1.10-120 = 2168万円</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closeAmountModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    キャンセル
+                </button>
+                <button onclick="saveAmount()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- プラン管理モーダル -->
+    <div id="planManagementModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 70;">
+        <div class="glass-modal rounded-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold" id="planManagementTitle">プラン管理</h2>
+                <div class="flex gap-2">
+                    <button onclick="openAddPlanModal()" class="w-8 h-8 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="closePlanManagementModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+                </div>
+            </div>
+            <div class="p-4">
+                <div class="space-y-2" id="planList">
+                    <div class="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl">
+                        <span class="text-gray-800">デフォルトプラン</span>
+                        <div class="flex gap-2">
+                            <button onclick="selectPlan(this)" class="w-8 h-8 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 flex items-center justify-center">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>
+                            <button class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                            </button>
+                            <!-- デフォルトプランは削除不可 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closePlanManagementModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- プラン追加モーダル -->
+    <div id="addPlanModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 80;">
+        <div class="glass-modal rounded-2xl w-full max-w-sm shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold">プラン追加</h2>
+                <button onclick="closeAddPlanModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+            </div>
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">プラン名</label>
+                    <input type="text" id="planNameInput" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="プラン名を入力">
+                </div>
+                <div class="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                    例: コンサバプラン、積極投資プラン、リスク回避プラン
+                </div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closeAddPlanModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    キャンセル
+                </button>
+                <button onclick="confirmAddPlan()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
+                    追加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 項目追加モーダル -->
+    <div id="addItemModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 hidden" style="z-index: 70;">
+        <div class="glass-modal rounded-2xl w-full max-w-sm shadow-2xl">
+            <div class="flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 class="text-xl font-semibold" id="addItemModalTitle">項目追加</h2>
+                <button onclick="closeAddItemModal()" class="text-2xl text-gray-600 hover:text-gray-800 p-1">×</button>
+            </div>
+            <div class="p-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">項目名</label>
+                    <input type="text" id="itemNameInput" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="項目名を入力">
+                </div>
+                <div id="itemTypeDisplay" class="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg mb-4"></div>
+            </div>
+            <div class="flex gap-3 p-4 border-t border-gray-200">
+                <button onclick="closeAddItemModal()" class="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200">
+                    キャンセル
+                </button>
+                <button onclick="confirmAddItem()" class="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200">
+                    追加
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentItem = '';
+        let currentType = '';
+        
+        // プラン管理モーダル制御
+        function openPlanModal(itemName = null) {
+            if (itemName) {
+                // 特定項目のプラン管理
+                document.getElementById('planManagementTitle').textContent = `${itemName} - プラン管理`;
+                document.getElementById('planManagementModal').classList.remove('hidden');
+                return;
+            }
+            // 全体の収支項目管理
+            document.getElementById('planModal').classList.remove('hidden');
+        }
+        
+        function closePlanManagementModal() {
+            document.getElementById('planManagementModal').classList.add('hidden');
+        }
+        
+        // プラン追加モーダル制御
+        function openAddPlanModal() {
+            document.getElementById('planNameInput').value = '';
+            document.getElementById('addPlanModal').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('planNameInput').focus();
+            }, 100);
+        }
+        
+        function closeAddPlanModal() {
+            document.getElementById('addPlanModal').classList.add('hidden');
+        }
+        
+        function confirmAddPlan() {
+            const planName = document.getElementById('planNameInput').value.trim();
+            if (planName) {
+                addPlanToList(planName);
+                closeAddPlanModal();
+            } else {
+                document.getElementById('planNameInput').focus();
+            }
+        }
+        
+        function addPlanToList(planName) {
+            const planList = document.getElementById('planList');
+            const planDiv = document.createElement('div');
+            planDiv.className = 'flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl';
+            
+            // 新しいプランは未選択状態で追加（単一選択を維持）
+            planDiv.innerHTML = `
+                <span class="text-gray-800">${planName}</span>
+                <div class="flex gap-2">
+                    <button onclick="selectPlan(this)" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-green-200 hover:text-green-700 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                    </button>
+                    <button class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="deletePlan(this)" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-red-200 hover:text-red-700 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            planList.appendChild(planDiv);
+            
+            // アイコンを再初期化
+            lucide.createIcons();
+        }
+        
+        function selectPlan(button) {
+            // 全てのプランの選択状態をリセット（ラジオボタン的な単一選択）
+            document.querySelectorAll('#planList button[onclick*="selectPlan"]').forEach(btn => {
+                btn.className = 'w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-green-200 hover:text-green-700 transition-all duration-200 flex items-center justify-center';
+            });
+            
+            // クリックしたプランだけを選択状態に（単一選択）
+            button.className = 'w-8 h-8 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 flex items-center justify-center';
+            
+            // 選択したプラン名を保存
+            const planName = button.closest('.flex').querySelector('span').textContent;
+            currentSelectedPlan = planName;
+            
+            // 推移画面のヘッダーも更新
+            const currentPlanHeaderElement = document.getElementById('currentPlanHeader');
+            if (currentPlanHeaderElement) {
+                currentPlanHeaderElement.textContent = currentSelectedPlan;
+            }
+            
+            // 推移画面が表示中ならテーブルも更新
+            if (!document.getElementById('transitionScreen').classList.contains('hidden')) {
+                updateTransitionTable();
+            }
+            
+            console.log('選択したプラン:', currentSelectedPlan);
+        }
+        
+        function deletePlan(button) {
+            console.log('削除ボタンがクリックされました');
+            const planElement = button.closest('.flex');
+            const planName = planElement.querySelector('span').textContent;
+            
+            console.log('削除対象プラン:', planName);
+            
+            if (confirm(`「${planName}」を削除しますか？`)) {
+                console.log('削除を実行します');
+                // 削除しようとしているプランが選択中の場合、デフォルトプランに戻す
+                if (currentSelectedPlan === planName) {
+                    currentSelectedPlan = 'デフォルトプラン';
+                    // デフォルトプランを選択状態にする
+                    const defaultPlanButton = document.querySelector('#planList .flex:first-child button[onclick*="selectPlan"]');
+                    if (defaultPlanButton) {
+                        defaultPlanButton.className = 'w-8 h-8 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-all duration-200 flex items-center justify-center';
+                    }
+                }
+                planElement.remove();
+                console.log('プランが削除されました');
+            } else {
+                console.log('削除がキャンセルされました');
+            }
+        }
+        
+        function closePlanModal() {
+            document.getElementById('planModal').classList.add('hidden');
+        }
+        
+        function applyPlan() {
+            // プラン保存ロジック（実装時に追加）
+            closePlanModal();
+        }
+        
+        let currentSelectedPlan = 'デフォルトプラン';
+        
+        // 設定モーダル制御
+        function openAmountModal(itemName, type) {
+            // 設定ボタンがクリックされたときは直接金額編集画面へ
+            openDirectAmountModal(itemName, type);
+        }
+        
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+        
+        function openAmountModalFromSettings() {
+            // 設定モーダルを閉じて金額設定モーダルを開く
+            closeSettingsModal();
+            openDirectAmountModal(currentItem, currentType);
+        }
+        
+        // 金額設定モーダル制御
+        function openDirectAmountModal(itemName, type) {
+            currentItem = itemName;
+            currentType = type;
+            
+            document.getElementById('amountModalTitle').textContent = `${itemName} - 金額設定`;
+            
+            // フォームの表示切り替え
+            const flowForm = document.getElementById('flowForm');
+            const stockForm = document.getElementById('stockForm');
+            
+            if (type === 'current') {
+                // 資産・負債（ストック）の場合
+                flowForm.style.display = 'none';
+                stockForm.style.display = 'block';
+            } else {
+                // 収入・支出（フロー）の場合
+                flowForm.style.display = 'block';
+                stockForm.style.display = 'none';
+                // デフォルトで月額を選択
+                document.querySelector('input[name="frequency"][value="monthly"]').checked = true;
+            }
+            
+            document.getElementById('amountModal').classList.remove('hidden');
+        }
+        
+        function closeAmountModal() {
+            document.getElementById('amountModal').classList.add('hidden');
+        }
+        
+        function saveAmount() {
+            let displayText;
+            
+            if (currentType === 'current') {
+                // 資産・負債（ストック）の場合
+                const baseYear = document.getElementById('stockBaseYear').value;
+                const baseAmount = document.getElementById('stockBaseAmount').value;
+                const rate = document.getElementById('stockRate').value;
+                const yearlyChange = document.getElementById('stockYearlyChange').value;
+                
+                let details = `基準: ${baseYear}年, ${parseInt(baseAmount).toLocaleString()}円`;
+                if (rate) details += `, 年率: ${rate}%`;
+                if (yearlyChange) details += `, 年額: ${parseInt(yearlyChange).toLocaleString()}円`;
+                
+                displayText = `${currentItem}: ${details}`;
+            } else {
+                // 収入・支出（フロー）の場合
+                const startYear = document.getElementById('startYear').value;
+                const endYear = document.getElementById('endYear').value;
+                const amount = document.getElementById('amountInput').value;
+                const frequency = document.querySelector('input[name="frequency"]:checked').value;
+                const flowRate = document.getElementById('flowRate').value;
+                
+                const startDate = `${startYear}/4/1`;
+                const endDate = endYear ? `${parseInt(endYear) + 1}/3/31` : '永続';
+                const frequencyText = frequency === 'monthly' ? '月額' : '年額';
+                
+                let details = `${parseInt(amount).toLocaleString()}円 (${frequencyText}, 期間: ${startDate}～${endDate})`;
+                if (flowRate) details += `, 年率: ${flowRate}%`;
+                
+                displayText = `${currentItem}: ${details}`;
+            }
+            
+            // 保存ロジック（実装時に追加）
+            console.log(displayText);
+            
+            closeAmountModal();
+        }
+        
+        // ストック計算例の動的更新
+        function updateStockCalculation() {
+            const baseYear = document.getElementById('stockBaseYear').value;
+            const baseAmount = document.getElementById('stockBaseAmount').value;
+            const rate = document.getElementById('stockRate').value;
+            const yearlyChange = document.getElementById('stockYearlyChange').value;
+            const display = document.getElementById('stockCalculationDisplay');
+            
+            if (!baseYear || !baseAmount) {
+                display.innerHTML = `
+                    <div class="mb-1"><strong>計算例:</strong></div>
+                    <div>基準年度と基準金額を入力してください</div>
+                `;
+                return;
+            }
+            
+            const base = parseFloat(baseAmount) / 10000; // 万円単位
+            const rateVal = rate ? parseFloat(rate) / 100 : 0;
+            const changeVal = yearlyChange ? parseFloat(yearlyChange) / 10000 : 0;
+            
+            let year1 = base;
+            let year2 = year1 * (1 + rateVal) + changeVal;
+            let year3 = year2 * (1 + rateVal) + changeVal;
+            
+            display.innerHTML = `
+                <div class="mb-1"><strong>計算例:</strong></div>
+                <div>${baseYear}/4/1: ${base.toFixed(0)}万円</div>
+                <div>${parseInt(baseYear) + 1}/3/31: ${year1.toFixed(0)}×${(1 + rateVal).toFixed(2)}${changeVal !== 0 ? `${changeVal >= 0 ? '+' : ''}${changeVal.toFixed(0)}` : ''} = ${year2.toFixed(0)}万円</div>
+                <div>${parseInt(baseYear) + 2}/3/31: ${year2.toFixed(0)}×${(1 + rateVal).toFixed(2)}${changeVal !== 0 ? `${changeVal >= 0 ? '+' : ''}${changeVal.toFixed(0)}` : ''} = ${year3.toFixed(0)}万円</div>
+            `;
+        }
+        
+        // フローの計算例表示更新
+        function updateFlowCalculation() {
+            const startYear = document.getElementById('startYear').value;
+            const endYear = document.getElementById('endYear').value;
+            const amount = document.getElementById('amountInput').value;
+            const flowRate = document.getElementById('flowRate').value;
+            const frequency = document.querySelector('input[name="frequency"]:checked')?.value;
+            const display = document.getElementById('periodDisplay');
+            
+            if (startYear && amount && flowRate) {
+                const frequencyText = frequency === 'monthly' ? '月額' : '年額';
+                const rateVal = parseFloat(flowRate) / 100;
+                const year1Amount = parseInt(amount);
+                const year2Amount = Math.round(year1Amount * (1 + rateVal));
+                const year3Amount = Math.round(year2Amount * (1 + rateVal));
+                
+                const endText = endYear ? `${parseInt(endYear) + 1}/3/31` : '永続';
+                display.innerHTML = `
+                    <div><strong>${startYear}/4/1～${endText}:</strong></div>
+                    <div>初年度: ${year1Amount.toLocaleString()}円 (${frequencyText})</div>
+                    <div>2年目: ${year2Amount.toLocaleString()}円 (年率${flowRate}%増)</div>
+                    <div>3年目: ${year3Amount.toLocaleString()}円</div>
+                `;
+            } else if (startYear && endYear) {
+                display.textContent = `${startYear}-${endYear} → ${startYear}/4/1～${parseInt(endYear) + 1}/3/31`;
+            } else if (startYear) {
+                display.textContent = `${startYear}～ → ${startYear}/4/1～永続`;
+            } else {
+                display.textContent = '例: 2025-2028 → 2025/4/1～2029/3/31';
+            }
+        }
+
+        // 入力フィールドにイベントリスナーを追加
+        document.addEventListener('DOMContentLoaded', function() {
+            const flowInputs = ['startYear', 'endYear', 'amountInput', 'flowRate'];
+            const stockInputs = ['stockBaseYear', 'stockBaseAmount', 'stockRate', 'stockYearlyChange'];
+            
+            flowInputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateFlowCalculation);
+                }
+            });
+            
+            // ラジオボタンのイベントリスナー
+            document.querySelectorAll('input[name="frequency"]').forEach(radio => {
+                radio.addEventListener('change', updateFlowCalculation);
+            });
+            
+            stockInputs.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', updateStockCalculation);
+                }
+            });
+        });
+        
+        // 期間表示の更新
+        function updatePeriodDisplay() {
+            const startYear = document.getElementById('startYear').value;
+            const endYear = document.getElementById('endYear').value;
+            const display = document.getElementById('periodDisplay');
+            
+            if (startYear && endYear) {
+                display.textContent = `${startYear}-${endYear} → ${startYear}/4/1～${parseInt(endYear) + 1}/3/31`;
+            } else if (startYear) {
+                display.textContent = `${startYear}～ → ${startYear}/4/1～永続`;
+            } else {
+                display.textContent = '例: 2025-2028 → 2025/4/1～2029/3/31';
+            }
+        }
+        
+        let currentAddItemType = '';
+        let currentAddItemContainer = '';
+        
+        // 項目追加モーダル制御
+        function openAddItemModal(title, type, container) {
+            currentAddItemType = type;
+            currentAddItemContainer = container;
+            document.getElementById('addItemModalTitle').textContent = title;
+            document.getElementById('itemNameInput').value = '';
+            
+            // タイプに応じた説明を表示
+            const typeDisplay = document.getElementById('itemTypeDisplay');
+            if (type === 'monthly' || type === 'yearly') {
+                typeDisplay.textContent = '収入・支出項目です。後で金額と期間を設定できます。';
+            } else {
+                typeDisplay.textContent = '資産・負債項目です。後で基準金額と増減率を設定できます。';
+            }
+            
+            document.getElementById('addItemModal').classList.remove('hidden');
+            // フォーカスをセット
+            setTimeout(() => {
+                document.getElementById('itemNameInput').focus();
+            }, 100);
+        }
+        
+        function closeAddItemModal() {
+            document.getElementById('addItemModal').classList.add('hidden');
+        }
+        
+        function confirmAddItem() {
+            const itemName = document.getElementById('itemNameInput').value.trim();
+            if (itemName) {
+                addItemToList(currentAddItemContainer, itemName, currentAddItemType);
+                closeAddItemModal();
+            } else {
+                // 入力フィールドにフォーカスを戻す
+                document.getElementById('itemNameInput').focus();
+            }
+        }
+        
+        // 項目追加関数
+        function addIncomeItem() {
+            openAddItemModal('収入項目を追加', 'monthly', 'incomeItems');
+        }
+        
+        function addExpenseItem() {
+            openAddItemModal('支出項目を追加', 'monthly', 'expenseItems');
+        }
+        
+        function addAssetItem() {
+            openAddItemModal('資産項目を追加', 'current', 'assetItems');
+        }
+        
+        function addDebtItem() {
+            openAddItemModal('負債項目を追加', 'current', 'debtItems');
+        }
+        
+        function addItemToList(containerId, itemName, type) {
+            const container = document.getElementById(containerId);
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl';
+            
+            // 全てのプランボタンを統一色にする
+            let planButtonClass = 'bg-blue-100 text-blue-700 hover:bg-blue-200';
+            
+            itemDiv.innerHTML = `
+                <span class="text-gray-800">${itemName}</span>
+                <div class="flex gap-2">
+                    <button onclick="openPlanModal('${itemName}')" class="w-8 h-8 ${planButtonClass} rounded-lg transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="clipboard" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="openAmountModal('${itemName}', '${type}')" class="w-8 h-8 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-200 flex items-center justify-center">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(itemDiv);
+            
+            // アイコンを再初期化
+            lucide.createIcons();
+        }
+        
+        // グラフ期間管理
+        let currentCashflowPeriod = 10;
+        let currentAssetsPeriod = 10;
+        
+        function togglePeriodSelector(chartType) {
+            const selector = document.getElementById(`${chartType}PeriodSelector`);
+            if (selector.classList.contains('hidden')) {
+                selector.classList.remove('hidden');
+            } else {
+                selector.classList.add('hidden');
+            }
+        }
+        
+        function setPeriod(chartType, years) {
+            if (chartType === 'cashflow') {
+                currentCashflowPeriod = years;
+                document.getElementById('cashflowPeriodText').textContent = `${years}年間`;
+                updateCashflowChart();
+            } else if (chartType === 'assets') {
+                currentAssetsPeriod = years;
+                document.getElementById('assetsPeriodText').textContent = `${years}年間`;
+                updateAssetsChart();
+            }
+            
+            // ボタンのアクティブ状態を更新
+            const selector = document.getElementById(`${chartType}PeriodSelector`);
+            selector.querySelectorAll('button').forEach(btn => {
+                btn.className = 'bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200';
+            });
+            event.target.className = 'bg-brand-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-brand-600 transition-all duration-200';
+            
+            // セレクターを閉じる
+            selector.classList.add('hidden');
+        }
+        
+        function updateCashflowChart() {
+            const currentYear = 2024;
+            const endYear = currentYear + currentCashflowPeriod;
+            const midYear = currentYear + Math.floor(currentCashflowPeriod / 2);
+            
+            // 軸ラベル更新
+            document.getElementById('cashflowYear1').textContent = currentYear;
+            document.getElementById('cashflowYear2').textContent = midYear;
+            document.getElementById('cashflowYear3').textContent = endYear;
+            
+            // 鏡面グラフ更新（サンプルデータ）
+            const incomePoints = generateMirrorCashflowPoints(600, 3, currentCashflowPeriod, true);  // 収入（上部）
+            const expensePoints = generateMirrorCashflowPoints(450, 2, currentCashflowPeriod, false); // 支出（下部）
+            
+            document.getElementById('incomeAreaChart').setAttribute('points', incomePoints);
+            document.getElementById('expenseAreaChart').setAttribute('points', expensePoints);
+        }
+        
+        function updateAssetsChart() {
+            const currentYear = 2024;
+            const endYear = currentYear + currentAssetsPeriod;
+            const midYear = currentYear + Math.floor(currentAssetsPeriod / 2);
+            
+            // 軸ラベル更新
+            document.getElementById('assetsYear1').textContent = currentYear;
+            document.getElementById('assetsYear2').textContent = midYear;
+            document.getElementById('assetsYear3').textContent = endYear;
+            
+            // 鏡面グラフ更新（サンプルデータ）
+            const assetsPoints = generateMirrorAssetsPoints(1500, 5, currentAssetsPeriod, true);  // 資産（上部）
+            const debtsPoints = generateMirrorAssetsPoints(3200, 4, currentAssetsPeriod, false); // 負債（下部、正の増減率で処理）
+            
+            document.getElementById('assetsAreaChart').setAttribute('points', assetsPoints);
+            document.getElementById('debtsAreaChart').setAttribute('points', debtsPoints);
+        }
+        
+        function generateMirrorCashflowPoints(initialValue, growthRate, years, isIncome) {
+            const points = [];
+            const baseY = 100; // ゼロライン（中央）
+            
+            // 開始点と終了点を追加（エリア描画用）
+            for (let i = 0; i <= years; i++) {
+                const x = 20 + (i / years) * 360;
+                const value = initialValue * Math.pow(1 + growthRate / 100, i);
+                const scaledValue = (value - initialValue) / (initialValue * 2) * 50; // スケール調整
+                
+                let y;
+                if (isIncome) {
+                    // 収入：中央線より上（負の方向）
+                    y = baseY - Math.abs(scaledValue);
+                } else {
+                    // 支出：中央線より下（正の方向）
+                    y = baseY + Math.abs(scaledValue);
+                }
+                
+                points.push(`${x},${Math.max(20, Math.min(180, y))}`);
+            }
+            
+            // エリア描画のために終点から開始点へのパスを追加
+            const endX = 20 + 360;
+            points.push(`${endX},${baseY}`);
+            points.push(`20,${baseY}`);
+            
+            return points.join(' ');
+        }
+        
+        function generateMirrorAssetsPoints(initialValue, growthRate, years, isAssets) {
+            const points = [];
+            const baseY = 100; // ゼロライン（中央）
+            
+            // データポイントの生成
+            for (let i = 0; i <= years; i++) {
+                const x = 20 + (i / years) * 360;
+                const value = initialValue * Math.pow(1 + growthRate / 100, i);
+                const scaledValue = (value - initialValue) / (initialValue * 1.2) * 80; // スケール調整
+                
+                let y;
+                if (isAssets) {
+                    // 資産：中央線より上（負の方向）
+                    y = baseY - Math.abs(scaledValue);
+                } else {
+                    // 負債：中央線より下（正の方向）
+                    y = baseY + Math.abs(scaledValue);
+                }
+                
+                points.push(`${x},${Math.max(10, Math.min(190, y))}`);
+            }
+            
+            // エリア描画のために終点から開始点へのパスを追加
+            const endX = 20 + 360;
+            points.push(`${endX},${baseY}`);
+            points.push(`20,${baseY}`);
+            
+            return points.join(' ');
+        }
+        
+        // 従来の関数（互換性のため残す）
+        function generateAssetsPoints(initialValue, growthRate, years, startY) {
+            const points = [];
+            for (let i = 0; i <= years; i++) {
+                const x = 20 + (i / years) * 360;
+                const value = initialValue * Math.pow(1 + growthRate / 100, i);
+                const y = startY - (value - initialValue) / (initialValue * 1.5) * 100;
+                points.push(`${x},${Math.max(20, Math.min(180, y))}`);
+            }
+            return points.join(' ');
+        }
+        
+        // 鏡面グラフでは純収支は視覚的に表現されるため、この関数は不要
+        function generateNetIncomePoints(incomePoints, expensePoints) {
+            // 鏡面グラフでは使用しないが、互換性のため残す
+            return '';
+        }
+        
+        function generateNetAssetsPoints(assetsPoints, debtsPoints) {
+            // 鏡面グラフでは純資産は視覚的に表現される（資産エリアと負債エリアの間隔で表現）
+            // 具体的な純資産ラインは描画しない
+            return '';
+        }
+        
+        // Lucideアイコンの初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+            // 初期状態で推移テーブルを設定
+            updateTransitionTable();
+        });
+        
+        // 画面切り替え機能
+        function showScreen(screenType) {
+            const dashboardScreen = document.getElementById('dashboardScreen');
+            const transitionScreen = document.getElementById('transitionScreen');
+            const dashboardBtn = document.getElementById('dashboardBtn');
+            const transitionBtn = document.getElementById('transitionBtn');
+            
+            if (screenType === 'dashboard') {
+                dashboardScreen.classList.remove('hidden');
+                dashboardScreen.classList.add('flex');
+                transitionScreen.classList.add('hidden');
+                transitionScreen.classList.remove('flex');
+                
+                dashboardBtn.className = 'flex-1 flex flex-col items-center py-2 text-blue-600';
+                transitionBtn.className = 'flex-1 flex flex-col items-center py-2 text-gray-500 hover:text-gray-700 transition-colors';
+            } else if (screenType === 'transition') {
+                dashboardScreen.classList.add('hidden');
+                dashboardScreen.classList.remove('flex');
+                transitionScreen.classList.remove('hidden');
+                transitionScreen.classList.add('flex');
+                
+                dashboardBtn.className = 'flex-1 flex flex-col items-center py-2 text-gray-500 hover:text-gray-700 transition-colors';
+                transitionBtn.className = 'flex-1 flex flex-col items-center py-2 text-blue-600';
+                
+                // 推移画面表示時に現在のプランを更新
+                document.getElementById('currentPlanHeader').textContent = currentSelectedPlan;
+                updateTransitionTable();
+            }
+        }
+        
+        // セクション折り畳み機能
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const button = section.previousElementSibling.querySelector('button i');
+            
+            if (section.classList.contains('hidden')) {
+                section.classList.remove('hidden');
+                button.style.transform = 'rotate(0deg)';
+            } else {
+                section.classList.add('hidden');
+                button.style.transform = 'rotate(-90deg)';
+            }
+        }
+        
+        // サンプルデータを動的に生成する関数
+        function generateSampleData(startYear, years) {
+            const data = {
+                income: {
+                    '給与': {},
+                    'ボーナス': {},
+                    '年金': {},
+                    '副業インセンティブ': {}
+                },
+                expense: {
+                    '住宅ローン': {},
+                    '生活費': {},
+                    '学費': {},
+                    '医療費': {},
+                    '習い事・塾': {}
+                },
+                assets: {
+                    '預金': {},
+                    '投資信託': {},
+                    '確定拠出年金': {}
+                },
+                debts: {
+                    '住宅ローン残債': {},
+                    '自動車ローン': {},
+                    'カード分割払い': {}
+                }
+            };
+            
+            for (let i = 0; i < years; i++) {
+                const year = startYear + i;
+                
+                // 収入（年率約3%増加）
+                data.income['給与'][year] = Math.round(480 * Math.pow(1.03, i));
+                data.income['ボーナス'][year] = Math.round(120 * Math.pow(1.03, i));
+                data.income['年金'][year] = year >= 2044 ? 180 : 0; // 65歳から開始想定
+                data.income['副業インセンティブ'][year] = Math.round(50 * Math.pow(1.10, i));
+                
+                // 支出（年率約2.5%増加）
+                data.expense['住宅ローン'][year] = year <= 2044 ? 120 : 0; // 20年で完済想定
+                data.expense['生活費'][year] = Math.round(240 * Math.pow(1.025, i));
+                data.expense['学費'][year] = year <= 2034 ? Math.round(60 * Math.pow(1.03, i)) : 0;
+                data.expense['医療費'][year] = Math.round(24 * Math.pow(1.04, i));
+                data.expense['習い事・塾'][year] = year <= 2032 ? Math.round(30 * Math.pow(1.05, i)) : 0;
+                
+                // 資産（複利計算）
+                data.assets['預金'][year] = Math.round(1000 * Math.pow(1.15, i));
+                data.assets['投資信託'][year] = Math.round(500 * Math.pow(1.15, i));
+                data.assets['確定拠出年金'][year] = Math.round(300 * Math.pow(1.15, i));
+                
+                // 負債（減少）
+                data.debts['住宅ローン残債'][year] = Math.max(0, 3000 - (120 * i));
+                data.debts['自動車ローン'][year] = Math.max(0, 200 - (80 * i));
+                data.debts['カード分割払い'][year] = Math.max(0, 50 - (25 * i));
+            }
+            
+            return data;
+        }
+        
+        // グローバルサンプルデータ
+        let sampleData = generateSampleData(2024, 50);
+        
+        // テーブル更新機能
+        function updateTransitionTable() {
+            const startYear = 2024;
+            const endYear = startYear + currentTransitionPeriod - 1;
+            
+            updatePLTable(startYear, endYear);
+            updateBSTable(startYear, endYear);
+        }
+        
+        // テキスト切り捨て関数（日本語対応）
+        function truncateText(text, maxLength = 12) {
+            if (text.length <= maxLength) {
+                return text;
+            }
+            return text.substring(0, maxLength) + '...';
+        }
+
+        function updatePLTable(startYear, endYear) {
+            const plTableBody = document.getElementById('plTableBody');
+            const plTable = document.getElementById('plTable');
+            
+            // ヘッダー更新
+            const headers = plTable.querySelector('thead tr');
+            headers.innerHTML = '<th class="text-left py-2 px-2 font-medium text-gray-700">項目</th>';
+            for (let year = startYear; year <= endYear; year++) {
+                headers.innerHTML += `<th class="text-right py-2 px-2 font-medium text-gray-700">${year}</th>`;
+            }
+            
+            // ボディ更新
+            plTableBody.innerHTML = '';
+            
+            // 収入セクション
+            const incomeHeader = document.createElement('tr');
+            incomeHeader.className = 'bg-blue-50 cursor-pointer';
+            incomeHeader.onclick = () => toggleCategoryRows('income');
+            incomeHeader.innerHTML = `
+                <td class="py-2 px-2 font-semibold text-blue-700 flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 mr-1" id="income-chevron"></i>
+                    <i data-lucide="trending-up" class="w-4 h-4"></i>
+                    <span class="ml-1">収入</span>
+                </td>
+                ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                    const year = startYear + i;
+                    const total = Object.values(sampleData.income).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    return `<td class="text-right py-2 px-2 font-semibold text-success-600">${total}</td>`;
+                }).join('')}
+            `;
+            plTableBody.appendChild(incomeHeader);
+            
+            // 収入項目
+            Object.entries(sampleData.income).forEach(([item, values]) => {
+                const row = document.createElement('tr');
+                row.className = 'income-row border-b border-gray-100 hidden';
+                const truncatedItem = truncateText(item, 10);
+                row.innerHTML = `
+                    <td class="py-2 px-6 text-gray-700 max-w-0">
+                        <div class="truncate" title="${item}">${truncatedItem}</div>
+                    </td>
+                    ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                        const year = startYear + i;
+                        return `<td class="text-right py-2 px-2 text-gray-800 font-medium">${values[year] || 0}</td>`;
+                    }).join('')}
+                `;
+                plTableBody.appendChild(row);
+            });
+            
+            // 支出セクション
+            const expenseHeader = document.createElement('tr');
+            expenseHeader.className = 'bg-red-50 cursor-pointer';
+            expenseHeader.onclick = () => toggleCategoryRows('expense');
+            expenseHeader.innerHTML = `
+                <td class="py-2 px-2 font-semibold text-red-700 flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 mr-1" id="expense-chevron"></i>
+                    <i data-lucide="trending-down" class="w-4 h-4"></i>
+                    <span class="ml-1">支出</span>
+                </td>
+                ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                    const year = startYear + i;
+                    const total = Object.values(sampleData.expense).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    return `<td class="text-right py-2 px-2 font-semibold text-danger-600">${total}</td>`;
+                }).join('')}
+            `;
+            plTableBody.appendChild(expenseHeader);
+            
+            // 支出項目
+            Object.entries(sampleData.expense).forEach(([item, values]) => {
+                const row = document.createElement('tr');
+                row.className = 'expense-row border-b border-gray-100 hidden';
+                const truncatedItem = truncateText(item, 10);
+                row.innerHTML = `
+                    <td class="py-2 px-6 text-gray-700 max-w-0">
+                        <div class="truncate" title="${item}">${truncatedItem}</div>
+                    </td>
+                    ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                        const year = startYear + i;
+                        return `<td class="text-right py-2 px-2 text-gray-800 font-medium">${values[year] || 0}</td>`;
+                    }).join('')}
+                `;
+                plTableBody.appendChild(row);
+            });
+            
+            // 純収支セクション（収入-支出）
+            const netIncomeHeader = document.createElement('tr');
+            netIncomeHeader.className = 'bg-purple-50';
+            netIncomeHeader.innerHTML = `
+                <td class="py-2 px-2 font-semibold text-purple-700 flex items-center">
+                    <i data-lucide="calculator" class="w-4 h-4"></i>
+                    <span class="ml-1">純収支</span>
+                </td>
+                ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                    const year = startYear + i;
+                    const income = Object.values(sampleData.income).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    const expense = Object.values(sampleData.expense).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    const net = income - expense;
+                    const colorClass = net >= 0 ? 'text-purple-700' : 'text-red-700';
+                    return `<td class="text-right py-2 px-2 font-semibold ${colorClass}">${net}</td>`;
+                }).join('')}
+            `;
+            plTableBody.appendChild(netIncomeHeader);
+        }
+        
+        function updateBSTable(startYear, endYear) {
+            const bsTableBody = document.getElementById('bsTableBody');
+            const bsTable = document.getElementById('bsTable');
+            
+            // ヘッダー更新
+            const headers = bsTable.querySelector('thead tr');
+            headers.innerHTML = '<th class="text-left py-2 px-2 font-medium text-gray-700">項目</th>';
+            for (let year = startYear; year <= endYear; year++) {
+                headers.innerHTML += `<th class="text-right py-2 px-2 font-medium text-gray-700">${year}</th>`;
+            }
+            
+            // ボディ更新
+            bsTableBody.innerHTML = '';
+            
+            // 資産セクション
+            const assetsHeader = document.createElement('tr');
+            assetsHeader.className = 'bg-green-50 cursor-pointer';
+            assetsHeader.onclick = () => toggleCategoryRows('assets');
+            assetsHeader.innerHTML = `
+                <td class="py-2 px-2 font-semibold text-green-700 flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 mr-1" id="assets-chevron"></i>
+                    <i data-lucide="piggy-bank" class="w-4 h-4"></i>
+                    <span class="ml-1">資産</span>
+                </td>
+                ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                    const year = startYear + i;
+                    const total = Object.values(sampleData.assets).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    return `<td class="text-right py-2 px-2 font-semibold text-green-700">${total}</td>`;
+                }).join('')}
+            `;
+            bsTableBody.appendChild(assetsHeader);
+            
+            // 資産項目
+            Object.entries(sampleData.assets).forEach(([item, values]) => {
+                const row = document.createElement('tr');
+                row.className = 'assets-row border-b border-gray-100 hidden';
+                const truncatedItem = truncateText(item, 10);
+                row.innerHTML = `
+                    <td class="py-2 px-6 text-gray-700 max-w-0">
+                        <div class="truncate" title="${item}">${truncatedItem}</div>
+                    </td>
+                    ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                        const year = startYear + i;
+                        return `<td class="text-right py-2 px-2 text-gray-800 font-medium">${values[year] || 0}</td>`;
+                    }).join('')}
+                `;
+                bsTableBody.appendChild(row);
+            });
+            
+            // 負債セクション
+            const debtsHeader = document.createElement('tr');
+            debtsHeader.className = 'bg-orange-50 cursor-pointer';
+            debtsHeader.onclick = () => toggleCategoryRows('debts');
+            debtsHeader.innerHTML = `
+                <td class="py-2 px-2 font-semibold text-orange-700 flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 mr-1" id="debts-chevron"></i>
+                    <i data-lucide="credit-card" class="w-4 h-4"></i>
+                    <span class="ml-1">負債</span>
+                </td>
+                ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                    const year = startYear + i;
+                    const total = Object.values(sampleData.debts).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    return `<td class="text-right py-2 px-2 font-semibold text-orange-700">${total}</td>`;
+                }).join('')}
+            `;
+            bsTableBody.appendChild(debtsHeader);
+            
+            // 負債項目
+            Object.entries(sampleData.debts).forEach(([item, values]) => {
+                const row = document.createElement('tr');
+                row.className = 'debts-row border-b border-gray-100 hidden';
+                const truncatedItem = truncateText(item, 10);
+                row.innerHTML = `
+                    <td class="py-2 px-6 text-gray-700 max-w-0">
+                        <div class="truncate" title="${item}">${truncatedItem}</div>
+                    </td>
+                    ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                        const year = startYear + i;
+                        return `<td class="text-right py-2 px-2 text-gray-800 font-medium">${values[year] || 0}</td>`;
+                    }).join('')}
+                `;
+                bsTableBody.appendChild(row);
+            });
+            
+            // 純資産セクション（資産-負債）
+            const netAssetsHeader = document.createElement('tr');
+            netAssetsHeader.className = 'bg-indigo-50';
+            netAssetsHeader.innerHTML = `
+                <td class="py-2 px-2 font-semibold text-indigo-700 flex items-center">
+                    <i data-lucide="wallet" class="w-4 h-4"></i>
+                    <span class="ml-1">純資産</span>
+                </td>
+                ${Array.from({length: endYear - startYear + 1}, (_, i) => {
+                    const year = startYear + i;
+                    const assets = Object.values(sampleData.assets).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    const debts = Object.values(sampleData.debts).reduce((sum, item) => sum + (item[year] || 0), 0);
+                    const net = assets - debts;
+                    const colorClass = net >= 0 ? 'text-indigo-700' : 'text-red-700';
+                    return `<td class="text-right py-2 px-2 font-semibold ${colorClass}">${net}</td>`;
+                }).join('')}
+            `;
+            bsTableBody.appendChild(netAssetsHeader);
+            
+            // アイコンを再初期化
+            lucide.createIcons();
+        }
+        
+        function toggleCategoryRows(category) {
+            const rows = document.querySelectorAll(`.${category}-row`);
+            const chevron = document.getElementById(`${category}-chevron`);
+            
+            if (rows.length === 0) return;
+            
+            const isHidden = rows[0].classList.contains('hidden');
+            
+            rows.forEach(row => {
+                if (isHidden) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+            
+            if (chevron) {
+                chevron.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
+            }
+        }
+        
+        // 推移画面の期間選択
+        let currentTransitionPeriod = 10;
+        
+        function toggleTransitionPeriodSelector() {
+            const selector = document.getElementById('transitionPeriodSelector');
+            if (selector.classList.contains('hidden')) {
+                selector.classList.remove('hidden');
+            } else {
+                selector.classList.add('hidden');
+            }
+        }
+        
+        function setTransitionPeriod(years) {
+            currentTransitionPeriod = years;
+            document.getElementById('transitionPeriodText').textContent = `${years}年間`;
+            
+            // ボタンのアクティブ状態更新
+            document.querySelectorAll('#transitionPeriodSelector button').forEach(btn => {
+                btn.className = 'bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-xs hover:bg-gray-300 transition-all duration-200';
+            });
+            event.target.className = 'bg-brand-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-brand-600 transition-all duration-200';
+            
+            // セレクターを閉じる
+            document.getElementById('transitionPeriodSelector').classList.add('hidden');
+            
+            // テーブル更新
+            updateTransitionTable();
+        }
+        
+        // キーボードショートカット
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                if (!document.getElementById('addItemModal').classList.contains('hidden')) {
+                    confirmAddItem();
+                } else if (!document.getElementById('addPlanModal').classList.contains('hidden')) {
+                    confirmAddPlan();
+                }
+            } else if (e.key === 'Escape') {
+                if (!document.getElementById('addItemModal').classList.contains('hidden')) {
+                    closeAddItemModal();
+                } else if (!document.getElementById('addPlanModal').classList.contains('hidden')) {
+                    closeAddPlanModal();
+                } else if (!document.getElementById('planManagementModal').classList.contains('hidden')) {
+                    closePlanManagementModal();
+                } else if (!document.getElementById('settingsModal').classList.contains('hidden')) {
+                    closeSettingsModal();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
