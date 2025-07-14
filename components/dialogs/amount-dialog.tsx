@@ -150,9 +150,9 @@ export function AmountDialog({
     const rateVal = rate / 100;
     const changeVal = yearlyChange / 10000;
 
-    let year1 = base;
-    let year2 = year1 * (1 + rateVal) + changeVal;
-    let year3 = year2 * (1 + rateVal) + changeVal;
+    const year1 = base;
+    const year2 = year1 * (1 + rateVal) + changeVal;
+    const year3 = year2 * (1 + rateVal) + changeVal;
 
     return (
       <div>

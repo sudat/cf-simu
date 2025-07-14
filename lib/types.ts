@@ -66,7 +66,7 @@ export interface SimulationState {
 export interface DialogState {
   isOpen: boolean;
   title?: string;
-  data?: any;
+  data?: unknown;
 }
 
 // 階層ナビゲーション対応のダイアログ状態
@@ -79,7 +79,7 @@ export interface HierarchicalDialogState extends DialogState {
 export interface DialogHistoryItem {
   dialogId: string;
   title?: string;
-  data?: any;
+  data?: unknown;
   timestamp: number;
 }
 

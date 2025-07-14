@@ -9,12 +9,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Plus, Clipboard, Settings } from "lucide-react";
 import {
-  Plus,
-  Clipboard,
-  Settings,
-} from "lucide-react";
-import { CategoryType, PlanItem } from "@/lib/types";
+  CategoryType,
+  AddItemData,
+  CategoryItems,
+  ItemSetting,
+} from "@/lib/types";
+import { AddItemDialog } from "./add-item-dialog";
+import { usePlanStore } from "@/lib/store/plan-store";
+import type { PlanStore } from "@/lib/store/plan-store";
 
 interface PlanDialogProps {
   open: boolean;
@@ -24,106 +28,6 @@ interface PlanDialogProps {
   onManagePlans?: (itemId: string) => void;
   onSettingsItem?: (itemId: string) => void;
 }
-
-// サンプルデータ（後で実際のデータに置き換え）
-const sampleItems: Record<CategoryType, PlanItem[]> = {
-  income: [
-    {
-      id: "salary",
-      name: "給与",
-      category: "income",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "bonus",
-      name: "ボーナス",
-      category: "income",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "pension",
-      name: "年金",
-      category: "income",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-  ],
-  expense: [
-    {
-      id: "housing-loan",
-      name: "住宅ローン",
-      category: "expense",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "living-cost",
-      name: "生活費",
-      category: "expense",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "education",
-      name: "学費",
-      category: "expense",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "medical",
-      name: "医療費",
-      category: "expense",
-      type: "flow",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-  ],
-  asset: [
-    {
-      id: "savings",
-      name: "預金",
-      category: "asset",
-      type: "stock",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "investment",
-      name: "投資信託",
-      category: "asset",
-      type: "stock",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-  ],
-  debt: [
-    {
-      id: "housing-debt",
-      name: "住宅ローン残債",
-      category: "debt",
-      type: "stock",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-    {
-      id: "car-loan",
-      name: "自動車ローン",
-      category: "debt",
-      type: "stock",
-      activePlan: "デフォルトプラン",
-      availablePlans: ["デフォルトプラン"],
-    },
-  ],
-};
 
 const categoryConfig = {
   income: {
@@ -160,7 +64,17 @@ export function PlanDialog({
   onManagePlans,
   onSettingsItem,
 }: PlanDialogProps) {
-  const [items] = useState(sampleItems);
+  // Zustandストアからデータ取得
+  const incomes = usePlanStore((s: PlanStore) => s.incomes);
+  const expenses = usePlanStore((s: PlanStore) => s.expenses);
+  const assets = usePlanStore((s: PlanStore) => s.assets);
+  const debts = usePlanStore((s: PlanStore) => s.debts);
+  const addItem = usePlanStore((s: PlanStore) => s.addItem);
+
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
+    null
+  );
 
   const handleSave = () => {
     onSave?.();
@@ -171,19 +85,52 @@ export function PlanDialog({
     onOpenChange(false);
   };
 
+  const handleAddItemClick = (category: CategoryType) => {
+    setSelectedCategory(category);
+    setShowAddDialog(true);
+    onAddItem?.(category);
+  };
+
+  const handleAddItem = (data: AddItemData) => {
+    addItem(data);
+    setShowAddDialog(false);
+    setSelectedCategory(null);
+  };
+
+  const categoryItemsMap: Record<CategoryType, CategoryItems> = {
+    income: incomes,
+    expense: expenses,
+    asset: assets,
+    debt: debts,
+  };
+
   const CategorySection = ({ category }: { category: CategoryType }) => {
     const config = categoryConfig[category];
-    const categoryItems = items[category] || [];
+    const categoryItems = Object.entries(categoryItemsMap[category] || {}).map(
+      ([name, value]: [
+        string,
+        { type: "flow" | "stock"; settings: ItemSetting }
+      ]) => ({
+        id: `${category}-${name}`,
+        name,
+        category,
+        type: value.type,
+        activePlan: "デフォルトプラン",
+        availablePlans: ["デフォルトプラン"],
+      })
+    );
 
     return (
       <div className="mb-6">
         <div className="flex justify-between items-center mb-3">
-          <h3 className="text-base font-semibold text-gray-800">{config.title}</h3>
+          <h3 className="text-base font-semibold text-gray-800">
+            {config.title}
+          </h3>
           <Button
             size="sm"
             variant="ghost"
             className={`h-8 w-8 p-0 ${config.bgColor} ${config.textColor} rounded-lg text-sm ${config.hoverColor} transition-all duration-200 flex items-center justify-center`}
-            onClick={() => onAddItem?.(category)}
+            onClick={() => handleAddItemClick(category)}
           >
             <Plus className="w-4 h-4" />
           </Button>
@@ -229,10 +176,15 @@ export function PlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm max-h-[80vh] overflow-y-auto glass-modal rounded-2xl shadow-2xl" showCloseButton={false}>
+      <DialogContent
+        className="max-w-sm max-h-[80vh] overflow-y-auto glass-modal rounded-2xl shadow-2xl"
+        showCloseButton={false}
+      >
         <DialogHeader className="flex justify-between items-center p-4 border-b border-gray-200">
-          <DialogTitle className="text-xl font-semibold">収支項目管理</DialogTitle>
-          <button 
+          <DialogTitle className="text-xl font-semibold">
+            収支項目管理
+          </DialogTitle>
+          <button
             onClick={handleCancel}
             className="text-2xl text-gray-600 hover:text-gray-800 p-1"
           >
@@ -248,20 +200,27 @@ export function PlanDialog({
         </div>
 
         <DialogFooter className="flex gap-3 p-4 border-t border-gray-200">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleCancel}
             className="flex-1 bg-white/60 backdrop-blur-md border border-white/30 text-gray-700 py-3 rounded-xl font-medium hover:bg-white/80 transition-all duration-200"
           >
             キャンセル
           </Button>
-          <Button 
+          <Button
             onClick={handleSave}
             className="flex-1 bg-brand-500 text-white py-3 rounded-xl font-medium hover:bg-brand-600 transition-all duration-200"
           >
             保存
           </Button>
         </DialogFooter>
+
+        <AddItemDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+          category={selectedCategory}
+          onAdd={handleAddItem}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -8,14 +8,19 @@ export interface UseDialogReturn {
   dialogs: Record<string, HierarchicalDialogState>;
 
   // 基本ダイアログ制御
-  openDialog: (dialogId: string, title?: string, data?: any) => void;
+  openDialog: (dialogId: string, title?: string, data?: unknown) => void;
   closeDialog: (dialogId: string) => void;
   isDialogOpen: (dialogId: string) => boolean;
-  getDialogData: (dialogId: string) => any;
+  getDialogData: (dialogId: string) => unknown;
   getDialogTitle: (dialogId: string) => string | undefined;
 
   // 階層ナビゲーション機能
-  openChildDialog: (parentDialogId: string, childDialogId: string, title?: string, data?: any) => void;
+  openChildDialog: (
+    parentDialogId: string,
+    childDialogId: string,
+    title?: string,
+    data?: unknown
+  ) => void;
   goBack: () => void;
   closeAllDialogs: () => void;
   getCurrentDialog: () => string | null;
@@ -34,7 +39,9 @@ export interface UseDialogReturn {
 }
 
 export function useDialog(): UseDialogReturn {
-  const [dialogs, setDialogs] = useState<Record<string, HierarchicalDialogState>>({});
+  const [dialogs, setDialogs] = useState<
+    Record<string, HierarchicalDialogState>
+  >({});
   const [dialogHistory, setDialogHistory] = useState<DialogHistoryItem[]>([]);
 
   const DIALOG_IDS = {
@@ -47,9 +54,11 @@ export function useDialog(): UseDialogReturn {
 
   // 現在開いているダイアログを取得
   const getCurrentDialog = useCallback(() => {
-    const openDialogs = Object.entries(dialogs).filter(([, state]) => state.isOpen);
+    const openDialogs = Object.entries(dialogs).filter(
+      ([, state]) => state.isOpen
+    );
     if (openDialogs.length === 0) return null;
-    
+
     // 最も階層が深いダイアログを返す
     return openDialogs.reduce((current, [dialogId, state]) => {
       if (!current) return dialogId;
@@ -69,7 +78,7 @@ export function useDialog(): UseDialogReturn {
 
   // 基本のダイアログ開く機能
   const openDialog = useCallback(
-    (dialogId: string, title?: string, data?: any) => {
+    (dialogId: string, title?: string, data?: unknown) => {
       setDialogs((prev) => ({
         ...prev,
         [dialogId]: {
@@ -79,7 +88,7 @@ export function useDialog(): UseDialogReturn {
           level: 0,
         },
       }));
-      
+
       // 履歴をリセット（新しいルートダイアログ）
       setDialogHistory([]);
     },
@@ -88,7 +97,12 @@ export function useDialog(): UseDialogReturn {
 
   // 子ダイアログを開く（親を閉じて階層を進む）
   const openChildDialog = useCallback(
-    (parentDialogId: string, childDialogId: string, title?: string, data?: any) => {
+    (
+      parentDialogId: string,
+      childDialogId: string,
+      title?: string,
+      data?: unknown
+    ) => {
       const parentDialog = dialogs[parentDialogId];
       if (!parentDialog || !parentDialog.isOpen) {
         console.warn(`Parent dialog ${parentDialogId} is not open`);
@@ -96,12 +110,15 @@ export function useDialog(): UseDialogReturn {
       }
 
       // 履歴に親ダイアログを追加
-      setDialogHistory(prev => [...prev, {
-        dialogId: parentDialogId,
-        title: parentDialog.title,
-        data: parentDialog.data,
-        timestamp: Date.now(),
-      }]);
+      setDialogHistory((prev) => [
+        ...prev,
+        {
+          dialogId: parentDialogId,
+          title: parentDialog.title,
+          data: parentDialog.data,
+          timestamp: Date.now(),
+        },
+      ]);
 
       // 親ダイアログを閉じて子ダイアログを開く
       setDialogs((prev) => ({
@@ -152,14 +169,14 @@ export function useDialog(): UseDialogReturn {
     }));
 
     // 履歴から削除
-    setDialogHistory(prev => prev.slice(0, -1));
+    setDialogHistory((prev) => prev.slice(0, -1));
   }, [dialogHistory, getCurrentDialog]);
 
   // 全てのダイアログを閉じる
   const closeAllDialogs = useCallback(() => {
     setDialogs((prev) => {
       const updated = { ...prev };
-      Object.keys(updated).forEach(key => {
+      Object.keys(updated).forEach((key) => {
         updated[key] = {
           ...updated[key],
           isOpen: false,
@@ -181,7 +198,9 @@ export function useDialog(): UseDialogReturn {
     }));
 
     // 閉じたダイアログが履歴にある場合は削除
-    setDialogHistory(prev => prev.filter(item => item.dialogId !== dialogId));
+    setDialogHistory((prev) =>
+      prev.filter((item) => item.dialogId !== dialogId)
+    );
   }, []);
 
   const isDialogOpen = useCallback(
