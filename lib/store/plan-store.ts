@@ -131,7 +131,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       }));
       
       return { success: true };
-    } catch (error) {
+    } catch {
       const errorMessage = "プランの追加に失敗しました";
       set((state) => ({ ...state, lastError: errorMessage }));
       return { success: false, error: errorMessage };
@@ -173,7 +173,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       }));
       
       return { success: true };
-    } catch (error) {
+    } catch {
       const errorMessage = "プランの削除に失敗しました";
       set((state) => ({ ...state, lastError: errorMessage }));
       return { success: false, error: errorMessage };
@@ -222,7 +222,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       }));
       
       return { success: true };
-    } catch (error) {
+    } catch {
       const errorMessage = "プラン名の変更に失敗しました";
       set((state) => ({ ...state, lastError: errorMessage }));
       return { success: false, error: errorMessage };
@@ -251,7 +251,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       }));
       
       return { success: true };
-    } catch (error) {
+    } catch {
       const errorMessage = "アクティブプランの設定に失敗しました";
       set((state) => ({ ...state, lastError: errorMessage }));
       return { success: false, error: errorMessage };

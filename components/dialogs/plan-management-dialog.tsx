@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +71,7 @@ export function PlanManagementDialog({
     deletePlan,
     renamePlan,
     setActivePlan,
+    lastError,
   } = usePlanStore();
 
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
@@ -158,10 +159,10 @@ export function PlanManagementDialog({
             </Button>
           </div>
 
-          {(localError || lastError) && (
+          {lastError && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-3">
               <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-800">{localError || lastError}</p>
+              <p className="text-sm text-red-800">{lastError}</p>
             </div>
           )}
 
