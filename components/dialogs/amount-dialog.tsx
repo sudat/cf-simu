@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -9,27 +10,42 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import React, { useCallback, useEffect, useState } from "react";
 
+import { usePlanStore } from "@/lib/store/plan-store";
 import {
-  FlowItemDetail,
-  StockItemDetail,
-  ItemType,
   AmountSettingData,
   AmountSettingFormData,
+  FlowItemDetail,
+  ItemType,
+  StockItemDetail,
   ValidationErrors,
 } from "@/lib/types";
-import { usePlanStore } from "@/lib/store/plan-store";
+import {
+  AmountInput,
+  SimpleAmountInput,
+} from "./amount-dialog/components/AmountInput";
+import {
+  YearRangeInput,
+  SimpleYearInput,
+} from "./amount-dialog/components/YearRangeInput";
+import {
+  FieldError,
+  GeneralError,
+  getErrorClassName,
+} from "./amount-dialog/components/ErrorMessage";
+import { calculateCompoundGrowth } from "./amount-dialog/utils/calculations";
+import { formatNumber } from "./amount-dialog/utils/formatters";
+import { validateUnifiedForm } from "./amount-dialog/utils/validators";
 
 interface AmountDialogProps {
   open: boolean;
@@ -85,154 +101,63 @@ export function AmountDialog({
     frequency: "yearly",
   });
 
-
-
   // バリデーションエラー状態
   const [errors, setErrors] = useState<ValidationErrors>({});
 
   // フォーカス状態管理（どのフィールドがフォーカスされているか）
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-
-  // 数値フォーマット関数
-  const formatNumber = (value: number): string => {
-    return value.toLocaleString('ja-JP');
-  };
-
-  // 数値入力フィールドの表示値を取得（フォーカス時は生の値、非フォーカス時は3桁区切り）
-  const getDisplayValue = (value: number | undefined, fieldName: string): string => {
-    if (value === undefined || value === null) return "";
-    if (focusedField === fieldName) {
-      // フォーカス時は生の値を表示
-      return value.toString();
-    } else {
-      // 非フォーカス時は3桁区切りで表示
-      return formatNumber(value);
-    }
-  };
-
-  // 複利計算関数
-  const calculateCompoundGrowth = (principal: number, rate: number, years: number): number => {
-    if (rate === 0) return principal;
-    return Math.round(principal * Math.pow(1 + rate / 100, years));
-  };
+  // const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // 統合フォームから既存型への変換
-  const convertUnifiedToLegacy = useCallback((data: AmountSettingFormData): FlowItemDetail | StockItemDetail => {
-    if (itemType === "flow") {
-      return {
-        startYear: data.startYear,
-        endYear: data.endYear,
-        amount: data.baseAmount || 0,
-        frequency: data.frequency,
-        growthRate: data.changeRate || 0,
-        yearlyChange: data.changeAmount || undefined,
-      } as FlowItemDetail;
-    } else {
-      return {
-        baseYear: data.startYear,
-        baseAmount: data.baseAmount || 0,
-        rate: data.changeRate || 0,
-        yearlyChange: data.changeAmount || 0,
-      } as StockItemDetail;
-    }
-  }, [itemType]);
+  const convertUnifiedToLegacy = useCallback(
+    (data: AmountSettingFormData): FlowItemDetail | StockItemDetail => {
+      if (itemType === "flow") {
+        return {
+          startYear: data.startYear,
+          endYear: data.endYear,
+          amount: data.baseAmount || 0,
+          frequency: data.frequency,
+          growthRate: data.changeRate || 0,
+          yearlyChange: data.changeAmount || undefined,
+        } as FlowItemDetail;
+      } else {
+        return {
+          baseYear: data.startYear,
+          baseAmount: data.baseAmount || 0,
+          rate: data.changeRate || 0,
+          yearlyChange: data.changeAmount || 0,
+        } as StockItemDetail;
+      }
+    },
+    [itemType]
+  );
 
   // 既存型から統合フォームへの変換
-  const convertLegacyToUnified = useCallback((data: FlowItemDetail | StockItemDetail): AmountSettingFormData => {
-    if (itemType === "flow") {
-      const flowData = data as FlowItemDetail;
-      return {
-        startYear: flowData.startYear,
-        endYear: flowData.endYear,
-        baseAmount: flowData.amount || 0,
-        changeAmount: flowData.yearlyChange,
-        changeRate: flowData.growthRate || undefined,
-        frequency: flowData.frequency,
-      };
-    } else {
-      const stockData = data as StockItemDetail;
-      return {
-        startYear: stockData.baseYear,
-        endYear: undefined,
-        baseAmount: stockData.baseAmount || 0,
-        changeAmount: stockData.yearlyChange || undefined,
-        changeRate: stockData.rate || undefined,
-        frequency: "yearly",
-      };
-    }
-  }, [itemType]);
-
-  // バリデーション関数
-  const validateUnifiedForm = (data: AmountSettingFormData): ValidationErrors => {
-    const newErrors: ValidationErrors = {};
-
-    // 開始のバリデーション
-    if (!data.startYear) {
-      newErrors.startYear = "開始は必須です";
-    } else if (isNaN(data.startYear)) {
-      newErrors.startYear = "有効な年度を入力してください";
-    } else if (data.startYear < 1900 || data.startYear > 2100) {
-      newErrors.startYear = "年度は1900～2100年の範囲で入力してください";
-    } else if (!Number.isInteger(data.startYear)) {
-      newErrors.startYear = "年度は整数で入力してください";
-    }
-
-    // 終了のバリデーション
-    if (data.endYear !== undefined) {
-      if (isNaN(data.endYear)) {
-        newErrors.endYear = "有効な年度を入力してください";
-      } else if (data.endYear < 1900 || data.endYear > 2100) {
-        newErrors.endYear = "年度は1900～2100年の範囲で入力してください";
-      } else if (!Number.isInteger(data.endYear)) {
-        newErrors.endYear = "年度は整数で入力してください";
-      } else if (data.endYear <= data.startYear) {
-        newErrors.endYear = "終了年度は開始年度より後にしてください";
-      } else if ((data.endYear - data.startYear) > 100) {
-        newErrors.endYear = "期間は100年以内にしてください";
+  const convertLegacyToUnified = useCallback(
+    (data: FlowItemDetail | StockItemDetail): AmountSettingFormData => {
+      if (itemType === "flow") {
+        const flowData = data as FlowItemDetail;
+        return {
+          startYear: flowData.startYear,
+          endYear: flowData.endYear,
+          baseAmount: flowData.amount || 0,
+          changeAmount: flowData.yearlyChange,
+          changeRate: flowData.growthRate || undefined,
+          frequency: flowData.frequency,
+        };
+      } else {
+        const stockData = data as StockItemDetail;
+        return {
+          startYear: stockData.baseYear,
+          endYear: undefined,
+          baseAmount: stockData.baseAmount || 0,
+          changeAmount: stockData.yearlyChange || undefined,
+          changeRate: stockData.rate || undefined,
+          frequency: "yearly",
+        };
       }
-    }
-
-    // ベース金額のバリデーション
-    if (data.baseAmount === undefined || data.baseAmount === null) {
-      newErrors.baseAmount = "ベース金額は必須です";
-    } else if (isNaN(data.baseAmount)) {
-      newErrors.baseAmount = "有効な金額を入力してください";
-    } else if (data.baseAmount < 0) {
-      newErrors.baseAmount = "金額は0以上で入力してください";
-    } else if (!Number.isInteger(data.baseAmount)) {
-      newErrors.baseAmount = "金額は整数で入力してください";
-    } else if (data.baseAmount > 999999999) {
-      newErrors.baseAmount = "金額は9億円以内で入力してください";
-    }
-
-    // 増減金額のバリデーション
-    if (data.changeAmount !== undefined) {
-      if (isNaN(data.changeAmount)) {
-        newErrors.changeAmount = "有効な金額を入力してください";
-      } else if (!Number.isInteger(data.changeAmount)) {
-        newErrors.changeAmount = "金額は整数で入力してください";
-      } else if (Math.abs(data.changeAmount) > 999999999) {
-        newErrors.changeAmount = "金額は9億円以内で入力してください";
-      }
-    }
-
-    // 増減率のバリデーション
-    if (data.changeRate !== undefined) {
-      if (isNaN(data.changeRate)) {
-        newErrors.changeRate = "有効な増減率を入力してください";
-      } else if (!Number.isInteger(data.changeRate)) {
-        newErrors.changeRate = "増減率は整数で入力してください";
-      } else if (data.changeRate < -100) {
-        newErrors.changeRate = "増減率は-100%以上で入力してください";
-      } else if (data.changeRate > 1000) {
-        newErrors.changeRate = "増減率は1000%以下で入力してください";
-      }
-    }
-
-    // 増減金額と増減率の同時指定は許可（削除）
-
-    return newErrors;
-  };
+    },
+    [itemType]
+  );
 
   // 初期データの設定
   useEffect(() => {
@@ -240,16 +165,22 @@ export function AmountDialog({
       // ストアから現在の設定を取得
       let storedSetting = null;
       if (itemId && planName) {
-        const parts = itemId.split('-');
+        const parts = itemId.split("-");
         if (parts.length >= 2) {
-          const category = parts[0] as 'income' | 'expense' | 'asset' | 'debt';
-          const itemName = parts.slice(1).join('-');
-          const categoryKey = category === 'income' ? 'incomes' :
-            category === 'expense' ? 'expenses' :
-              category === 'asset' ? 'assets' : 'debts';
+          const category = parts[0] as "income" | "expense" | "asset" | "debt";
+          const itemName = parts.slice(1).join("-");
+          const categoryKey =
+            category === "income"
+              ? "incomes"
+              : category === "expense"
+              ? "expenses"
+              : category === "asset"
+              ? "assets"
+              : "debts";
 
           const state = usePlanStore.getState();
-          storedSetting = state[categoryKey]?.[itemName]?.settings?.[planName] || null;
+          storedSetting =
+            state[categoryKey]?.[itemName]?.settings?.[planName] || null;
         }
       }
 
@@ -297,7 +228,15 @@ export function AmountDialog({
         }
       }
     }
-  }, [open, initialData, itemType, useUnifiedForm, convertLegacyToUnified, itemId, planName]);
+  }, [
+    open,
+    initialData,
+    itemType,
+    useUnifiedForm,
+    convertLegacyToUnified,
+    itemId,
+    planName,
+  ]);
 
   // 統合フォームのバリデーション
   useEffect(() => {
@@ -358,18 +297,26 @@ export function AmountDialog({
   };
 
   // 数値入力のフォーマット処理関数
-  const handleNumberInput = (value: string, field: 'startYear' | 'endYear' | 'baseAmount' | 'changeAmount' | 'changeRate') => {
-    if (value === '') {
-      if (field === 'startYear') return new Date().getFullYear();
-      if (field === 'baseAmount') return 0;
+  const handleNumberInput = (
+    value: string,
+    field:
+      | "startYear"
+      | "endYear"
+      | "baseAmount"
+      | "changeAmount"
+      | "changeRate"
+  ) => {
+    if (value === "") {
+      if (field === "startYear") return new Date().getFullYear();
+      if (field === "baseAmount") return 0;
       return undefined;
     }
 
     const numValue = parseInt(value);
 
     if (isNaN(numValue)) {
-      if (field === 'startYear') return new Date().getFullYear();
-      if (field === 'baseAmount') return 0;
+      if (field === "startYear") return new Date().getFullYear();
+      if (field === "baseAmount") return 0;
       return undefined;
     }
 
@@ -377,8 +324,11 @@ export function AmountDialog({
   };
 
   // 統合フォームの更新関数
-  const updateUnifiedData = (field: keyof AmountSettingFormData, value: string | number | undefined) => {
-    setUnifiedData(prev => ({ ...prev, [field]: value }));
+  const updateUnifiedData = (
+    field: keyof AmountSettingFormData,
+    value: string | number | undefined
+  ) => {
+    setUnifiedData((prev) => ({ ...prev, [field]: value }));
   };
 
   // キーボードショートカット
@@ -394,7 +344,14 @@ export function AmountDialog({
 
   // 統合フォームの計算例
   const getUnifiedCalculationExample = () => {
-    const { startYear, endYear, baseAmount, changeAmount, changeRate, frequency } = unifiedData;
+    const {
+      startYear,
+      endYear,
+      baseAmount,
+      changeAmount,
+      changeRate,
+      frequency,
+    } = unifiedData;
 
     if (!startYear || isNaN(startYear)) {
       return (
@@ -426,14 +383,19 @@ export function AmountDialog({
     const endText = endYear ? `${endYear + 1}/3/31` : "永続";
 
     // 年額ベースで計算（月額の場合は年額に換算）
-    const yearlyBaseAmount = frequency === "monthly" ? baseAmount * 12 : baseAmount;
+    const yearlyBaseAmount =
+      frequency === "monthly" ? baseAmount * 12 : baseAmount;
 
     // 増減金額も年額ベースに換算
-    const yearlyChangeAmount = changeAmount !== undefined ?
-      (frequency === "monthly" ? changeAmount * 12 : changeAmount) : undefined;
+    const yearlyChangeAmount =
+      changeAmount !== undefined
+        ? frequency === "monthly"
+          ? changeAmount * 12
+          : changeAmount
+        : undefined;
 
     // 年額ベースでの計算
-    let year1Amount = yearlyBaseAmount;
+    const year1Amount = yearlyBaseAmount;
     let year2Amount = yearlyBaseAmount;
     let year3Amount = yearlyBaseAmount;
     let year5Amount = yearlyBaseAmount;
@@ -443,27 +405,38 @@ export function AmountDialog({
 
     if (yearlyChangeAmount !== undefined && changeRate !== undefined) {
       // 増減金額と増減率の両方が指定された場合（複利 + 固定増減）
-      year2Amount = Math.round(year1Amount * (1 + changeRate / 100)) + yearlyChangeAmount;
-      year3Amount = Math.round(year2Amount * (1 + changeRate / 100)) + yearlyChangeAmount;
+      year2Amount =
+        Math.round(year1Amount * (1 + changeRate / 100)) + yearlyChangeAmount;
+      year3Amount =
+        Math.round(year2Amount * (1 + changeRate / 100)) + yearlyChangeAmount;
 
       // 5年目の計算
       let currentAmount = year1Amount;
       for (let i = 1; i < 5; i++) {
-        currentAmount = Math.round(currentAmount * (1 + changeRate / 100)) + yearlyChangeAmount;
+        currentAmount =
+          Math.round(currentAmount * (1 + changeRate / 100)) +
+          yearlyChangeAmount;
       }
       year5Amount = currentAmount;
 
-      const changeAmountText = frequency === "monthly" ?
-        `毎年${yearlyChangeAmount >= 0 ? '+' : ''}${formatNumber(yearlyChangeAmount)}円` :
-        `毎年${yearlyChangeAmount >= 0 ? '+' : ''}${formatNumber(yearlyChangeAmount)}円`;
+      const changeAmountText =
+        frequency === "monthly"
+          ? `毎年${yearlyChangeAmount >= 0 ? "+" : ""}${formatNumber(
+              yearlyChangeAmount
+            )}円`
+          : `毎年${yearlyChangeAmount >= 0 ? "+" : ""}${formatNumber(
+              yearlyChangeAmount
+            )}円`;
       calculationMethod = `年率${changeRate}%の複利 + ${changeAmountText}の増減`;
     } else if (yearlyChangeAmount !== undefined) {
       // 増減金額のみ（単純増減）
       year2Amount = year1Amount + yearlyChangeAmount;
-      year3Amount = year1Amount + (yearlyChangeAmount * 2);
-      year5Amount = year1Amount + (yearlyChangeAmount * 4);
+      year3Amount = year1Amount + yearlyChangeAmount * 2;
+      year5Amount = year1Amount + yearlyChangeAmount * 4;
 
-      const changeAmountText = `毎年${yearlyChangeAmount >= 0 ? '+' : ''}${formatNumber(yearlyChangeAmount)}円`;
+      const changeAmountText = `毎年${
+        yearlyChangeAmount >= 0 ? "+" : ""
+      }${formatNumber(yearlyChangeAmount)}円`;
       calculationMethod = `${changeAmountText}の増減`;
     } else if (changeRate !== undefined && changeRate !== 0) {
       // 増減率のみ（複利計算）
@@ -480,7 +453,9 @@ export function AmountDialog({
     const getDisplayAmount = (yearlyAmount: number) => {
       if (frequency === "monthly") {
         const monthlyAmount = Math.round(yearlyAmount / 12);
-        return `${formatNumber(yearlyAmount)}円 (${formatNumber(monthlyAmount)}円/月)`;
+        return `${formatNumber(yearlyAmount)}円 (${formatNumber(
+          monthlyAmount
+        )}円/月)`;
       } else {
         return `${formatNumber(yearlyAmount)}円`;
       }
@@ -489,30 +464,33 @@ export function AmountDialog({
     return (
       <div>
         <div className="font-medium mb-2 text-gray-700">
-          計算例（ベース金額: {formatNumber(baseAmount)}円{frequency === "monthly" ? "/月" : "/年"}）
+          計算例（ベース金額: {formatNumber(baseAmount)}円
+          {frequency === "monthly" ? "/月" : "/年"}）
         </div>
 
         <div className="space-y-2 text-sm">
           <div className="bg-blue-50 p-2 rounded text-blue-800">
-            📅 期間: {startYear}/4/1～{endText}<br />
-            💰 設定: {frequencyText}ベース<br />
+            📅 期間: {startYear}/4/1～{endText}
+            <br />
+            💰 設定: {frequencyText}ベース
+            <br />
             📈 計算方法: {calculationMethod}
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div className="text-gray-600">{startYear}年度:</div>
-            <div className="font-medium">
-              {getDisplayAmount(year1Amount)}
-            </div>
+            <div className="font-medium">{getDisplayAmount(year1Amount)}</div>
 
-            {(changeAmount !== undefined || (changeRate !== undefined && changeRate !== 0)) && (
+            {(changeAmount !== undefined ||
+              (changeRate !== undefined && changeRate !== 0)) && (
               <>
                 <div className="text-gray-600">{startYear + 1}年度:</div>
                 <div className="font-medium">
                   {getDisplayAmount(year2Amount)}
                   {changeRate !== undefined && changeRate !== 0 && (
                     <span className="text-xs text-blue-600 ml-1">
-                      ({changeRate >= 0 ? '+' : ''}{changeRate}%)
+                      ({changeRate >= 0 ? "+" : ""}
+                      {changeRate}%)
                     </span>
                   )}
                 </div>
@@ -620,7 +598,9 @@ export function AmountDialog({
 
   // フォームが有効かどうかの判定
   const isFormValid = useUnifiedForm
-    ? Object.keys(errors).length === 0 && unifiedData.startYear && unifiedData.baseAmount !== undefined
+    ? Object.keys(errors).length === 0 &&
+      unifiedData.startYear &&
+      unifiedData.baseAmount !== undefined
     : true; // 既存モードは既存のロジックで判定
 
   return (
@@ -631,101 +611,57 @@ export function AmountDialog({
           <DialogDescription>
             {useUnifiedForm
               ? `${planName}の金額変動パターンを設定します`
-              : `${planName}の設定を行います`
-            }
+              : `${planName}の設定を行います`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4" onKeyDown={useUnifiedForm ? handleKeyDown : undefined}>
+        <div
+          className="space-y-6 py-4"
+          onKeyDown={useUnifiedForm ? handleKeyDown : undefined}
+        >
           {useUnifiedForm ? (
             // 統合フォームモード
             <>
               {/* 年度設定 */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startYear" className="text-sm font-medium">
-                    開始 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="startYear"
-                    type="number"
-                    value={unifiedData.startYear}
-                    onChange={(e) =>
-                      updateUnifiedData('startYear', handleNumberInput(e.target.value, 'startYear'))
-                    }
-                    className={errors.startYear ? "border-red-500" : ""}
-                    placeholder="例: 2024"
-                    min="1900"
-                    max="2100"
-                  />
-                  {errors.startYear && (
-                    <p className="text-xs text-red-600">{errors.startYear}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Label htmlFor="endYear" className="text-sm font-medium cursor-help">
-                          終了
-                        </Label>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>空欄の場合は永続的に継続します</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <Input
-                    id="endYear"
-                    type="number"
-                    value={unifiedData.endYear || ""}
-                    onChange={(e) =>
-                      updateUnifiedData('endYear', handleNumberInput(e.target.value, 'endYear'))
-                    }
-                    className={errors.endYear ? "border-red-500" : ""}
-                    placeholder="例: 2030"
-                    min="1900"
-                    max="2100"
-                  />
-                  {errors.endYear && (
-                    <p className="text-xs text-red-600">{errors.endYear}</p>
-                  )}
-                </div>
-              </div>
+              <YearRangeInput
+                startYear={unifiedData.startYear}
+                endYear={unifiedData.endYear}
+                onStartYearChange={(year) =>
+                  updateUnifiedData("startYear", year)
+                }
+                onEndYearChange={(year) => updateUnifiedData("endYear", year)}
+                startYearError={errors.startYear}
+                endYearError={errors.endYear}
+                startYearLabel="開始"
+                endYearLabel="終了"
+                startYearPlaceholder="例: 2024"
+                endYearPlaceholder="例: 2030"
+                startYearRequired={true}
+                endYearHelpText="空欄の場合は永続的に継続します"
+              />
 
               {/* ベース金額設定 */}
-              <div className="space-y-2">
-                <Label htmlFor="unified-baseAmount" className="text-sm font-medium">
-                  ベース金額 <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
-                  <Input
-                    id="unified-baseAmount"
-                    type="text"
-                    className={`pl-8 ${errors.baseAmount ? "border-red-500" : ""}`}
-                    value={getDisplayValue(unifiedData.baseAmount, 'baseAmount')}
-                    onChange={(e) => {
-                      const rawValue = e.target.value.replace(/,/g, '');
-                      updateUnifiedData('baseAmount', handleNumberInput(rawValue, 'baseAmount'));
-                    }}
-                    onFocus={() => setFocusedField('baseAmount')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="例: 1000000 (100万円)"
-                  />
-                </div>
-                {errors.baseAmount && (
-                  <p className="text-xs text-red-600">{errors.baseAmount}</p>
-                )}
-              </div>
+              <AmountInput
+                id="unified-baseAmount"
+                label="ベース金額"
+                required={true}
+                value={unifiedData.baseAmount}
+                onChange={(value) =>
+                  updateUnifiedData("baseAmount", value || 0)
+                }
+                error={errors.baseAmount}
+                placeholder="例: 1000000 (100万円)"
+                fieldName="baseAmount"
+              />
 
               {/* 年額/月額選択 */}
               <div className="space-y-2">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Label className="text-sm font-medium cursor-help">設定単位</Label>
+                      <Label className="text-sm font-medium cursor-help">
+                        設定単位
+                      </Label>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>月額設定: 年間で12倍した金額で計算されます</p>
@@ -735,16 +671,28 @@ export function AmountDialog({
 
                 <RadioGroup
                   value={unifiedData.frequency}
-                  onValueChange={(value) => updateUnifiedData('frequency', value)}
+                  onValueChange={(value) =>
+                    updateUnifiedData("frequency", value)
+                  }
                   className="flex gap-6"
                 >
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="yearly" id="unified-yearly" />
-                    <Label htmlFor="unified-yearly" className="text-sm cursor-pointer">年額</Label>
+                    <Label
+                      htmlFor="unified-yearly"
+                      className="text-sm cursor-pointer"
+                    >
+                      年額
+                    </Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <RadioGroupItem value="monthly" id="unified-monthly" />
-                    <Label htmlFor="unified-monthly" className="text-sm cursor-pointer">月額</Label>
+                    <Label
+                      htmlFor="unified-monthly"
+                      className="text-sm cursor-pointer"
+                    >
+                      月額
+                    </Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -756,25 +704,22 @@ export function AmountDialog({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div>
-                          <Label htmlFor="changeAmount" className="text-sm font-medium cursor-help">
+                          <Label
+                            htmlFor="changeAmount"
+                            className="text-sm font-medium cursor-help"
+                          >
                             増減金額
                           </Label>
-                          <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
-                            <Input
-                              id="changeAmount"
-                              type="text"
-                              className={`pl-8 ${errors.changeAmount ? "border-red-500" : ""}`}
-                              value={getDisplayValue(unifiedData.changeAmount, 'changeAmount')}
-                              onChange={(e) => {
-                                const rawValue = e.target.value.replace(/,/g, '');
-                                updateUnifiedData('changeAmount', handleNumberInput(rawValue, 'changeAmount'));
-                              }}
-                              onFocus={() => setFocusedField('changeAmount')}
-                              onBlur={() => setFocusedField(null)}
-                              placeholder="年10万円増の場合、100000"
-                            />
-                          </div>
+                          <SimpleAmountInput
+                            id="changeAmount"
+                            value={unifiedData.changeAmount}
+                            onChange={(value) =>
+                              updateUnifiedData("changeAmount", value)
+                            }
+                            error={errors.changeAmount}
+                            placeholder="年10万円増の場合、100000"
+                            fieldName="changeAmount"
+                          />
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -782,9 +727,7 @@ export function AmountDialog({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  {errors.changeAmount && (
-                    <p className="text-xs text-red-600">{errors.changeAmount}</p>
-                  )}
+                  <FieldError error={errors.changeAmount} />
                 </div>
 
                 <div className="space-y-2">
@@ -792,7 +735,10 @@ export function AmountDialog({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div>
-                          <Label htmlFor="changeRate" className="text-sm font-medium cursor-help">
+                          <Label
+                            htmlFor="changeRate"
+                            className="text-sm font-medium cursor-help"
+                          >
                             増減率
                           </Label>
                           <div className="relative">
@@ -800,39 +746,45 @@ export function AmountDialog({
                               id="changeRate"
                               type="number"
                               step="1"
-                              className={`pr-8 ${errors.changeRate ? "border-red-500" : ""}`}
+                              className={getErrorClassName(
+                                !!errors.changeRate,
+                                "pr-8"
+                              )}
                               value={unifiedData.changeRate || ""}
                               onChange={(e) =>
-                                updateUnifiedData('changeRate', handleNumberInput(e.target.value, 'changeRate'))
+                                updateUnifiedData(
+                                  "changeRate",
+                                  handleNumberInput(
+                                    e.target.value,
+                                    "changeRate"
+                                  )
+                                )
                               }
                               placeholder="年5%増の場合、5"
                               min="-100"
                               max="1000"
                             />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                              %
+                            </span>
                           </div>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>複利で計算されます（例: 投資の年利、インフレ）<br />整数のみ入力可能</p>
+                        <p>
+                          複利で計算されます（例: 投資の年利、インフレ）
+                          <br />
+                          整数のみ入力可能
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  {errors.changeRate && (
-                    <p className="text-xs text-red-600">{errors.changeRate}</p>
-                  )}
+                  <FieldError error={errors.changeRate} />
                 </div>
               </div>
 
               {/* 全体エラーメッセージ */}
-              {errors.general && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                  <div className="flex items-start gap-2">
-                    <span className="text-red-500 text-sm">⚠️</span>
-                    <p className="text-sm text-red-800">{errors.general}</p>
-                  </div>
-                </div>
-              )}
+              <GeneralError error={errors.general} />
 
               {/* 計算例 */}
               <Card className="bg-gray-50">
@@ -846,44 +798,28 @@ export function AmountDialog({
           ) : itemType === "flow" ? (
             // フロー項目用フォーム（既存モード）
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startYear">開始年度 (4/1～)</Label>
-                  <Input
-                    id="startYear"
-                    type="number"
-                    value={flowData.startYear}
-                    onChange={(e) =>
-                      setFlowData({
-                        ...flowData,
-                        startYear: parseInt(e.target.value) || 2024,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endYear">
-                    終了年度 (～3/31)
-                    <span className="text-xs text-gray-500 ml-1">
-                      ※空欄で永続
-                    </span>
-                  </Label>
-                  <Input
-                    id="endYear"
-                    type="number"
-                    value={flowData.endYear || ""}
-                    onChange={(e) =>
-                      setFlowData({
-                        ...flowData,
-                        endYear: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder="未入力で永続"
-                  />
-                </div>
-              </div>
+              <YearRangeInput
+                startYear={flowData.startYear}
+                endYear={flowData.endYear}
+                onStartYearChange={(year) =>
+                  setFlowData({
+                    ...flowData,
+                    startYear: year,
+                  })
+                }
+                onEndYearChange={(year) =>
+                  setFlowData({
+                    ...flowData,
+                    endYear: year,
+                  })
+                }
+                startYearLabel="開始年度 (4/1～)"
+                endYearLabel="終了年度 (～3/31)"
+                startYearPlaceholder="例: 2024"
+                endYearPlaceholder="未入力で永続"
+                startYearRequired={false}
+                endYearHelpText="空欄で永続"
+              />
 
               <div className="space-y-2">
                 <Label>支払い頻度</Label>
@@ -921,28 +857,19 @@ export function AmountDialog({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount">金額</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
-                  <Input
-                    id="amount"
-                    type="text"
-                    className="pl-8"
-                    value={getDisplayValue(flowData.amount, 'amount')}
-                    onChange={(e) => {
-                      const rawValue = e.target.value.replace(/,/g, '');
-                      setFlowData({
-                        ...flowData,
-                        amount: parseInt(rawValue) || 0,
-                      });
-                    }}
-                    onFocus={() => setFocusedField('amount')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+              <AmountInput
+                id="amount"
+                label="金額"
+                value={flowData.amount}
+                onChange={(value) =>
+                  setFlowData({
+                    ...flowData,
+                    amount: value || 0,
+                  })
+                }
+                placeholder="0"
+                fieldName="amount"
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="growthRate">
@@ -983,43 +910,31 @@ export function AmountDialog({
           ) : (
             // ストック項目用フォーム
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="baseYear">基準年度</Label>
-                <Input
-                  id="baseYear"
-                  type="number"
-                  value={stockData.baseYear}
-                  onChange={(e) =>
-                    setStockData({
-                      ...stockData,
-                      baseYear: parseInt(e.target.value) || 2024,
-                    })
-                  }
-                />
-              </div>
+              <SimpleYearInput
+                id="baseYear"
+                label="基準年度"
+                value={stockData.baseYear}
+                onChange={(year) =>
+                  setStockData({
+                    ...stockData,
+                    baseYear: year,
+                  })
+                }
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="baseAmount">基準時点の金額</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
-                  <Input
-                    id="baseAmount"
-                    type="text"
-                    className="pl-8"
-                    value={getDisplayValue(stockData.baseAmount, 'stockBaseAmount')}
-                    onChange={(e) => {
-                      const rawValue = e.target.value.replace(/,/g, '');
-                      setStockData({
-                        ...stockData,
-                        baseAmount: parseInt(rawValue) || 0,
-                      });
-                    }}
-                    onFocus={() => setFocusedField('stockBaseAmount')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+              <AmountInput
+                id="baseAmount"
+                label="基準時点の金額"
+                value={stockData.baseAmount}
+                onChange={(value) =>
+                  setStockData({
+                    ...stockData,
+                    baseAmount: value || 0,
+                  })
+                }
+                placeholder="0"
+                fieldName="stockBaseAmount"
+              />
 
               <div className="space-y-2">
                 <Label htmlFor="rate">
@@ -1049,33 +964,19 @@ export function AmountDialog({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="yearlyChange">
-                  年額増減
-                  <span className="text-xs text-gray-500 ml-1">
-                    ※空欄で変動なし
-                  </span>
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
-                  <Input
-                    id="yearlyChange"
-                    type="text"
-                    className="pl-8"
-                    value={getDisplayValue(stockData.yearlyChange, 'yearlyChange')}
-                    onChange={(e) => {
-                      const rawValue = e.target.value.replace(/,/g, '');
-                      setStockData({
-                        ...stockData,
-                        yearlyChange: parseInt(rawValue) || 0,
-                      });
-                    }}
-                    onFocus={() => setFocusedField('yearlyChange')}
-                    onBlur={() => setFocusedField(null)}
-                    placeholder="例: 1200000 (年120万積立)、-1200000 (年120万減少)"
-                  />
-                </div>
-              </div>
+              <AmountInput
+                id="yearlyChange"
+                label="年額増減"
+                value={stockData.yearlyChange}
+                onChange={(value) =>
+                  setStockData({
+                    ...stockData,
+                    yearlyChange: value || 0,
+                  })
+                }
+                placeholder="例: 1200000 (年120万積立)、-1200000 (年120万減少)"
+                fieldName="yearlyChange"
+              />
 
               <Card className="bg-gray-50">
                 <CardContent className="p-3">
@@ -1092,7 +993,10 @@ export function AmountDialog({
           <Button variant="outline" onClick={handleCancel}>
             キャンセル
           </Button>
-          <Button onClick={handleSave} disabled={useUnifiedForm ? !isFormValid : false}>
+          <Button
+            onClick={handleSave}
+            disabled={useUnifiedForm ? !isFormValid : false}
+          >
             保存
           </Button>
         </DialogFooter>
