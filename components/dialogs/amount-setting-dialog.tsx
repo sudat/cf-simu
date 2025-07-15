@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AmountSettingFormData, ValidationErrors } from "@/lib/types";
 
 interface AmountSettingDialogProps {
@@ -36,6 +37,7 @@ export function AmountSettingDialog({
   const [formData, setFormData] = useState<AmountSettingFormData>({
     startYear: new Date().getFullYear(),
     endYear: undefined,
+    baseAmount: 0,
     changeAmount: undefined,
     changeRate: undefined,
     frequency: "yearly",
@@ -54,6 +56,7 @@ export function AmountSettingDialog({
         setFormData({
           startYear: new Date().getFullYear(),
           endYear: undefined,
+          baseAmount: 0,
           changeAmount: undefined,
           changeRate: undefined,
           frequency: "yearly",
@@ -104,6 +107,19 @@ export function AmountSettingDialog({
       }
     }
 
+    // ベース金額のバリデーション
+    if (data.baseAmount === undefined || data.baseAmount === null) {
+      newErrors.baseAmount = "ベース金額は必須です";
+    } else if (isNaN(data.baseAmount)) {
+      newErrors.baseAmount = "有効な金額を入力してください";
+    } else if (data.baseAmount < 0) {
+      newErrors.baseAmount = "金額は0以上で入力してください";
+    } else if (!Number.isInteger(data.baseAmount)) {
+      newErrors.baseAmount = "金額は整数で入力してください";
+    } else if (data.baseAmount > 999999999) {
+      newErrors.baseAmount = "金額は9億円以内で入力してください";
+    }
+
     // 増減金額のバリデーション
     if (data.changeAmount !== undefined) {
       if (isNaN(data.changeAmount)) {
@@ -150,16 +166,20 @@ export function AmountSettingDialog({
   }, [formData]);
 
   // 数値入力のフォーマット処理
-  const handleNumberInput = (value: string, field: 'startYear' | 'endYear' | 'changeAmount' | 'changeRate') => {
+  const handleNumberInput = (value: string, field: 'startYear' | 'endYear' | 'baseAmount' | 'changeAmount' | 'changeRate') => {
     if (value === '') {
-      return field === 'startYear' ? new Date().getFullYear() : undefined;
+      if (field === 'startYear') return new Date().getFullYear();
+      if (field === 'baseAmount') return 0;
+      return undefined;
     }
 
     const numValue = parseInt(value);
 
-    // NaNの場合はundefined（ただしstartYearは現在年を返す）
+    // NaNの場合はundefined（ただしstartYearは現在年、baseAmountは0を返す）
     if (isNaN(numValue)) {
-      return field === 'startYear' ? new Date().getFullYear() : undefined;
+      if (field === 'startYear') return new Date().getFullYear();
+      if (field === 'baseAmount') return 0;
+      return undefined;
     }
 
     return numValue;
@@ -235,12 +255,20 @@ export function AmountSettingDialog({
 
   // 計算例の生成
   const getCalculationExample = () => {
-    const { startYear, endYear, changeAmount, changeRate, frequency } = formData;
+    const { startYear, endYear, baseAmount, changeAmount, changeRate, frequency } = formData;
 
     if (!startYear || isNaN(startYear)) {
       return (
         <div className="text-gray-500 text-center py-4">
           開始を正しく入力してください
+        </div>
+      );
+    }
+
+    if (!baseAmount || baseAmount === 0) {
+      return (
+        <div className="text-gray-500 text-center py-4">
+          ベース金額を入力してください
         </div>
       );
     }
@@ -257,7 +285,6 @@ export function AmountSettingDialog({
 
     const frequencyText = frequency === "monthly" ? "月額" : "年額";
     const endText = endYear ? `${endYear + 1}/3/31` : "永続";
-    const baseAmount = 1000000; // 計算例用の基準金額
 
     // 年額/月額の換算を考慮
     const displayAmount = frequency === "monthly" ? Math.round(baseAmount / 12) : baseAmount;
@@ -375,7 +402,7 @@ export function AmountSettingDialog({
   };
 
   // フォームが有効かどうかの判定
-  const isFormValid = Object.keys(errors).length === 0 && formData.startYear;
+  const isFormValid = Object.keys(errors).length === 0 && formData.startYear && formData.baseAmount !== undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -432,6 +459,31 @@ export function AmountSettingDialog({
                 <p className="text-xs text-red-600">{errors.endYear}</p>
               )}
             </div>
+          </div>
+
+          {/* ベース金額設定 */}
+          <div className="space-y-2">
+            <Label htmlFor="baseAmount" className="text-sm font-medium">
+              ベース金額 <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-3 text-gray-500">¥</span>
+              <Input
+                id="baseAmount"
+                type="number"
+                className={`pl-8 ${errors.baseAmount ? "border-red-500" : ""}`}
+                value={formData.baseAmount || ""}
+                onChange={(e) =>
+                  updateFormData('baseAmount', handleNumberInput(e.target.value, 'baseAmount'))
+                }
+                placeholder="例: 1000000 (100万円)"
+                min="0"
+                max="999999999"
+              />
+            </div>
+            {errors.baseAmount && (
+              <p className="text-xs text-red-600">{errors.baseAmount}</p>
+            )}
           </div>
 
           {/* 増減設定 */}
@@ -491,30 +543,20 @@ export function AmountSettingDialog({
           {/* 年額/月額選択 */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">設定単位</Label>
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="frequency"
-                  value="yearly"
-                  checked={formData.frequency === "yearly"}
-                  onChange={(e) => updateFormData('frequency', e.target.value)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span className="text-sm">年額</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="frequency"
-                  value="monthly"
-                  checked={formData.frequency === "monthly"}
-                  onChange={(e) => updateFormData('frequency', e.target.value)}
-                  className="w-4 h-4 text-blue-600"
-                />
-                <span className="text-sm">月額</span>
-              </label>
-            </div>
+            <RadioGroup 
+              value={formData.frequency} 
+              onValueChange={(value) => updateFormData('frequency', value)}
+              className="flex gap-6"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="yearly" id="yearly" />
+                <Label htmlFor="yearly" className="text-sm cursor-pointer">年額</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="monthly" id="monthly" />
+                <Label htmlFor="monthly" className="text-sm cursor-pointer">月額</Label>
+              </div>
+            </RadioGroup>
           </div>
 
           {/* 入力ヘルプと注意事項 */}

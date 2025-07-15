@@ -25,4 +25,4 @@ export type {
 } from "../../lib/types";
 
 // 後方互換性のため旧AmountSettingDialogからのエクスポートも維持
-export type { AmountSettingFormData as AmountSettingFormDataLegacy } from "./amount-setting-dialog";
+// AmountSettingFormDataは lib/types.ts で定義されているため、上記でエクスポート済み

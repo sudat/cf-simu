@@ -19,6 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 import {
   FlowItemDetail,
@@ -384,6 +385,14 @@ export function AmountDialog({
       );
     }
 
+    if (!baseAmount || baseAmount === 0) {
+      return (
+        <div className="text-gray-500 text-center py-4">
+          ベース金額を入力してください
+        </div>
+      );
+    }
+
     // バリデーションエラーがある場合は計算例を表示しない
     const validationErrors = validateUnifiedForm(unifiedData);
     if (Object.keys(validationErrors).length > 0) {
@@ -396,10 +405,9 @@ export function AmountDialog({
 
     const frequencyText = frequency === "monthly" ? "月額" : "年額";
     const endText = endYear ? `${endYear + 1}/3/31` : "永続";
-    const currentBaseAmount = baseAmount || 0; // 実際のベース金額を使用
 
     // 年額/月額の換算を考慮
-    const displayAmount = frequency === "monthly" ? Math.round(currentBaseAmount / 12) : currentBaseAmount;
+    const displayAmount = frequency === "monthly" ? Math.round(baseAmount / 12) : baseAmount;
 
     const year1Amount = displayAmount;
     let year2Amount = displayAmount;
@@ -667,13 +675,13 @@ export function AmountDialog({
 
               {/* ベース金額設定 */}
               <div className="space-y-2">
-                <Label htmlFor="baseAmount" className="text-sm font-medium">
+                <Label htmlFor="unified-baseAmount" className="text-sm font-medium">
                   ベース金額 <span className="text-red-500">*</span>
                 </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
                   <Input
-                    id="baseAmount"
+                    id="unified-baseAmount"
                     type="text"
                     className={`pl-8 ${errors.baseAmount ? "border-red-500" : ""}`}
                     value={getDisplayValue(unifiedData.baseAmount, 'baseAmount')}
@@ -704,34 +712,20 @@ export function AmountDialog({
                   </Tooltip>
                 </TooltipProvider>
 
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="frequency"
-                      value="yearly"
-                      checked={unifiedData.frequency === "yearly"}
-                      onChange={() => {
-                        setUnifiedData(prev => ({ ...prev, frequency: "yearly" }));
-                      }}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-sm">年額</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="frequency"
-                      value="monthly"
-                      checked={unifiedData.frequency === "monthly"}
-                      onChange={() => {
-                        setUnifiedData(prev => ({ ...prev, frequency: "monthly" }));
-                      }}
-                      className="w-4 h-4 text-blue-600"
-                    />
-                    <span className="text-sm">月額</span>
-                  </label>
-                </div>
+                <RadioGroup 
+                  value={unifiedData.frequency} 
+                  onValueChange={(value) => updateUnifiedData('frequency', value)}
+                  className="flex gap-6"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="yearly" id="unified-yearly" />
+                    <Label htmlFor="unified-yearly" className="text-sm cursor-pointer">年額</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="monthly" id="unified-monthly" />
+                    <Label htmlFor="unified-monthly" className="text-sm cursor-pointer">月額</Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               {/* 増減設定 */}
