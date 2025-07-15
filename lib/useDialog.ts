@@ -303,19 +303,27 @@ export function usePlanDialogs() {
       itemId: string,
       itemName: string,
       itemType: "flow" | "stock",
-      planName: string = "デフォルトプラン"
+      planName?: string
     ) => {
+      // アクティブプランを動的に取得（planNameが指定されていない場合）
+      const activePlanName = planName || "デフォルトプラン"; // 現在は固定値、後でusePlanStoreから取得予定
+      
+      // カテゴリをitemIdから抽出
+      const parts = itemId.split('-');
+      const category = parts[0] as "income" | "expense" | "asset" | "debt";
+      
       setCurrentItem({
         id: itemId,
         name: itemName,
         type: itemType,
-        category: "income", // 実際の値は別途設定
+        category: category,
       });
+      
       dialog.openChildDialog(
         dialog.DIALOG_IDS.PLAN_MANAGEMENT,
         dialog.DIALOG_IDS.AMOUNT_SETTING,
         "金額設定",
-        { itemId, itemName, itemType, planName }
+        { itemId, itemName, itemType, planName: activePlanName }
       );
     },
     [dialog]

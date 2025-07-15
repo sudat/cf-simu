@@ -115,11 +115,29 @@ export interface AddPlanData {
   planName: string;
 }
 
-// 金額設定時の情報
+// 金額設定時の情報（既存形式）
 export interface AmountSettingData {
   itemId: string;
   planName: string;
   setting: FlowItemDetail | StockItemDetail;
+}
+
+// 統合金額設定フォームデータ（新形式）
+export interface AmountSettingFormData {
+  startYear: number; // 年度(開始)
+  endYear?: number; // 年度(終了) - 空欄可
+  changeAmount?: number; // 増減金額 - 空欄可
+  changeRate?: number; // 増減率(%) - 空欄可、整数のみ
+  frequency: "yearly" | "monthly"; // 年額/月額
+}
+
+// バリデーションエラーの型定義
+export interface ValidationErrors {
+  startYear?: string;
+  endYear?: string;
+  changeAmount?: string;
+  changeRate?: string;
+  general?: string;
 }
 
 // プラン定義

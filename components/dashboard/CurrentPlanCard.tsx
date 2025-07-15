@@ -5,6 +5,7 @@ import { usePlanDialogs } from "@/lib/useDialog";
 import { PlanDialog } from "@/components/dialogs/plan-dialog";
 import { PlanManagementDialog } from "@/components/dialogs/plan-management-dialog";
 import { AddPlanDialog } from "@/components/dialogs/add-plan-dialog";
+import { AmountDialog } from "@/components/dialogs/amount-dialog";
 import { usePlanStore } from "@/lib/store/plan-store";
 
 export function CurrentPlanCard() {
@@ -12,6 +13,7 @@ export function CurrentPlanCard() {
     openPlanMain, 
     openPlanManagement, 
     openAddPlan,
+    openAmountSetting,
     isDialogOpen, 
     closeDialog, 
     getDialogData,
@@ -19,7 +21,7 @@ export function CurrentPlanCard() {
     DIALOG_IDS 
   } = usePlanDialogs();
 
-  const { addPlan } = usePlanStore();
+  const { addPlan, saveAmountSetting } = usePlanStore();
 
   return (
     <>
@@ -46,7 +48,28 @@ export function CurrentPlanCard() {
           openPlanManagement(itemId, itemName);
         }}
         onSettingsItem={(itemId) => {
-          alert(`${itemId}の金額設定機能を実装中です`);
+          try {
+            // itemIdから必要な情報を抽出: "category-name" 形式
+            const parts = itemId.split('-');
+            if (parts.length < 2) {
+              console.error('Invalid itemId format:', itemId);
+              return;
+            }
+            
+            const category = parts[0] as 'income' | 'expense' | 'asset' | 'debt';
+            const itemName = parts.slice(1).join('-');
+            
+            // itemTypeを判定（カテゴリから推測）
+            // income/expense: flow, asset/debt: stock
+            const itemType = (category === 'income' || category === 'expense') ? 'flow' : 'stock';
+            
+            // アクティブプランを取得（現在は固定値）
+            const activePlan = "デフォルトプラン";
+            
+            openAmountSetting(itemId, itemName, itemType, activePlan);
+          } catch (error) {
+            console.error('Error opening amount setting:', error);
+          }
         }}
         onAddItem={() => {
           // 項目追加機能（実装予定）
@@ -75,6 +98,37 @@ export function CurrentPlanCard() {
         onAdd={(data) => {
           addPlan(data.planName);
           goBack();
+        }}
+      />
+
+      <AmountDialog
+        open={isDialogOpen(DIALOG_IDS.AMOUNT_SETTING)}
+        onOpenChange={(open) => {
+          if (!open) closeDialog(DIALOG_IDS.AMOUNT_SETTING);
+        }}
+        itemId={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemId?: string })?.itemId}
+        itemName={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemName?: string })?.itemName}
+        itemType={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemType?: "flow" | "stock" })?.itemType}
+        planName={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { planName?: string })?.planName}
+        useUnifiedForm={true}
+        onSaveUnified={(data) => {
+          const dialogData = getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { 
+            itemId?: string; 
+            planName?: string; 
+          };
+          
+          if (dialogData?.itemId && dialogData?.planName) {
+            const result = saveAmountSetting(dialogData.itemId, dialogData.planName, data);
+            if (result.success) {
+              console.log('Amount setting saved successfully');
+              goBack();
+            } else {
+              console.error('Failed to save amount setting:', result.error);
+              // エラーハンドリング（現在はコンソールログのみ）
+            }
+          } else {
+            console.error('Missing itemId or planName');
+          }
         }}
       />
     </>

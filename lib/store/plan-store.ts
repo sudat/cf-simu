@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { PlanState, AddItemData, PlanDefinition } from "../types";
+import { PlanState, AddItemData, PlanDefinition, AmountSettingFormData, FlowItemDetail, StockItemDetail } from "../types";
 
 // 初期データ（空）
 const initialState: PlanState = {
@@ -32,6 +32,12 @@ export interface PlanStore extends PlanState, GlobalPlanState {
   renamePlan: (id: string, newName: string) => { success: boolean; error?: string };
   setActivePlan: (id: string) => { success: boolean; error?: string };
   getActivePlan: () => PlanDefinition | null;
+  // 金額設定保存
+  saveAmountSetting: (
+    itemId: string,
+    planName: string,
+    data: AmountSettingFormData
+  ) => { success: boolean; error?: string };
   // エラー状態管理
   lastError: string | null;
   clearError: () => void;
@@ -262,6 +268,83 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   getActivePlan: () => {
     const state = get();
     return state.globalPlans.find((plan) => plan.isActive) || null;
+  },
+
+  // 金額設定保存
+  saveAmountSetting: (
+    itemId: string,
+    planName: string,
+    data: AmountSettingFormData
+  ) => {
+    try {
+      // itemIdから categoryとitemName を抽出: "category-name" 形式
+      const parts = itemId.split('-');
+      if (parts.length < 2) {
+        const error = "Invalid itemId format";
+        set((state) => ({ ...state, lastError: error }));
+        return { success: false, error };
+      }
+
+      const category = parts[0] as 'income' | 'expense' | 'asset' | 'debt';
+      const itemName = parts.slice(1).join('-');
+
+      // itemTypeを判定（カテゴリから推測）
+      const itemType = (category === 'income' || category === 'expense') ? 'flow' : 'stock';
+
+      // 統合フォームデータを従来型に変換
+      let setting: FlowItemDetail | StockItemDetail;
+      
+      if (itemType === 'flow') {
+        setting = {
+          startYear: data.startYear,
+          endYear: data.endYear,
+          amount: 0, // 基本金額は別途設定（現在は0）
+          frequency: data.frequency,
+          growthRate: data.changeRate || 0,
+        } as FlowItemDetail;
+      } else {
+        setting = {
+          baseYear: data.startYear,
+          baseAmount: 0, // 基本金額は別途設定（現在は0）
+          rate: data.changeRate || 0,
+          yearlyChange: data.changeAmount || 0,
+        } as StockItemDetail;
+      }
+
+      // 状態を更新
+      set((state) => {
+        const categoryKey = category === 'income' ? 'incomes' :
+                           category === 'expense' ? 'expenses' :
+                           category === 'asset' ? 'assets' : 'debts';
+
+        const categoryData = state[categoryKey];
+        if (!categoryData[itemName]) {
+          const error = `Item ${itemName} not found in ${category}`;
+          return { ...state, lastError: error };
+        }
+
+        return {
+          ...state,
+          [categoryKey]: {
+            ...categoryData,
+            [itemName]: {
+              ...categoryData[itemName],
+              settings: {
+                ...categoryData[itemName].settings,
+                [planName]: setting,
+              },
+            },
+          },
+          lastError: null,
+        };
+      });
+
+      return { success: true };
+    } catch {
+      const errorMessage = "金額設定の保存に失敗しました";
+      set((state) => ({ ...state, lastError: errorMessage }));
+      return { success: false, error: errorMessage };
+    }
   },
 
   // エラー状態クリア
