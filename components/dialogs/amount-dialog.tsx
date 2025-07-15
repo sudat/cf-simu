@@ -62,7 +62,7 @@ export function AmountDialog({
     startYear: 2024,
     endYear: undefined,
     amount: 0,
-    frequency: "monthly",
+    frequency: "monthly" as const,
     growthRate: 0,
     yearlyChange: undefined,
   });
@@ -145,7 +145,7 @@ export function AmountDialog({
         startYear: flowData.startYear,
         endYear: flowData.endYear,
         baseAmount: flowData.amount || 0,
-        changeAmount: flowData.yearlyChange || undefined,
+        changeAmount: flowData.yearlyChange,
         changeRate: flowData.growthRate || undefined,
         frequency: flowData.frequency,
       };
@@ -247,14 +247,14 @@ export function AmountDialog({
           const categoryKey = category === 'income' ? 'incomes' :
             category === 'expense' ? 'expenses' :
               category === 'asset' ? 'assets' : 'debts';
-          
+
           const state = usePlanStore.getState();
           storedSetting = state[categoryKey]?.[itemName]?.settings?.[planName] || null;
         }
       }
-      
+
       const dataToUse = initialData || storedSetting;
-      
+
       if (useUnifiedForm) {
         // 統合フォームモード
         if (dataToUse) {
@@ -284,7 +284,7 @@ export function AmountDialog({
             startYear: 2024,
             endYear: undefined,
             amount: 0,
-            frequency: "monthly",
+            frequency: "monthly" as const,
             growthRate: 0,
             yearlyChange: undefined,
           });
@@ -425,76 +425,71 @@ export function AmountDialog({
     const frequencyText = frequency === "monthly" ? "月額" : "年額";
     const endText = endYear ? `${endYear + 1}/3/31` : "永続";
 
-    // 年額/月額の換算を考慮
-    const displayAmount = frequency === "monthly" ? Math.round(baseAmount / 12) : baseAmount;
-    
-    // 増減金額も月額/年額に応じて換算
-    const displayChangeAmount = changeAmount !== undefined ? 
-      (frequency === "monthly" ? Math.round(changeAmount / 12) : changeAmount) : undefined;
+    // 年額ベースで計算（月額の場合は年額に換算）
+    const yearlyBaseAmount = frequency === "monthly" ? baseAmount * 12 : baseAmount;
 
-    const year1Amount = displayAmount;
-    let year2Amount = displayAmount;
-    let year3Amount = displayAmount;
-    let year5Amount = displayAmount;
+    // 増減金額も年額ベースに換算
+    const yearlyChangeAmount = changeAmount !== undefined ?
+      (frequency === "monthly" ? changeAmount * 12 : changeAmount) : undefined;
+
+    // 年額ベースでの計算
+    let year1Amount = yearlyBaseAmount;
+    let year2Amount = yearlyBaseAmount;
+    let year3Amount = yearlyBaseAmount;
+    let year5Amount = yearlyBaseAmount;
 
     // 計算方法の説明
     let calculationMethod = "";
 
-    if (displayChangeAmount !== undefined && changeRate !== undefined) {
+    if (yearlyChangeAmount !== undefined && changeRate !== undefined) {
       // 増減金額と増減率の両方が指定された場合（複利 + 固定増減）
-      let currentAmount = displayAmount;
-      year2Amount = Math.round(currentAmount * (1 + changeRate / 100)) + displayChangeAmount;
-      year3Amount = Math.round(year2Amount * (1 + changeRate / 100)) + displayChangeAmount;
+      year2Amount = Math.round(year1Amount * (1 + changeRate / 100)) + yearlyChangeAmount;
+      year3Amount = Math.round(year2Amount * (1 + changeRate / 100)) + yearlyChangeAmount;
 
       // 5年目の計算
-      currentAmount = displayAmount;
+      let currentAmount = year1Amount;
       for (let i = 1; i < 5; i++) {
-        currentAmount = Math.round(currentAmount * (1 + changeRate / 100)) + displayChangeAmount;
+        currentAmount = Math.round(currentAmount * (1 + changeRate / 100)) + yearlyChangeAmount;
       }
       year5Amount = currentAmount;
 
-      const changeAmountText = frequency === "monthly" ? 
-        `毎月${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円` :
-        `毎年${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円`;
+      const changeAmountText = frequency === "monthly" ?
+        `毎年${yearlyChangeAmount >= 0 ? '+' : ''}${formatNumber(yearlyChangeAmount)}円` :
+        `毎年${yearlyChangeAmount >= 0 ? '+' : ''}${formatNumber(yearlyChangeAmount)}円`;
       calculationMethod = `年率${changeRate}%の複利 + ${changeAmountText}の増減`;
-    } else if (displayChangeAmount !== undefined) {
+    } else if (yearlyChangeAmount !== undefined) {
       // 増減金額のみ（単純増減）
-      if (frequency === "monthly") {
-        // 月額の場合：毎月の増減
-        year2Amount = displayAmount + displayChangeAmount; // 月額での増加
-        year3Amount = displayAmount + (displayChangeAmount * 2);
-        year5Amount = displayAmount + (displayChangeAmount * 4);
-      } else {
-        // 年額の場合：毎年の増減
-        year2Amount = displayAmount + displayChangeAmount;
-        year3Amount = displayAmount + (displayChangeAmount * 2);
-        year5Amount = displayAmount + (displayChangeAmount * 4);
-      }
+      year2Amount = year1Amount + yearlyChangeAmount;
+      year3Amount = year1Amount + (yearlyChangeAmount * 2);
+      year5Amount = year1Amount + (yearlyChangeAmount * 4);
 
-      const changeAmountText = frequency === "monthly" ? 
-        `毎月${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円` :
-        `毎年${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円`;
+      const changeAmountText = `毎年${yearlyChangeAmount >= 0 ? '+' : ''}${formatNumber(yearlyChangeAmount)}円`;
       calculationMethod = `${changeAmountText}の増減`;
-    } else if (changeRate !== undefined) {
+    } else if (changeRate !== undefined && changeRate !== 0) {
       // 増減率のみ（複利計算）
-      year2Amount = calculateCompoundGrowth(displayAmount, changeRate, 1);
-      year3Amount = calculateCompoundGrowth(displayAmount, changeRate, 2);
-      year5Amount = calculateCompoundGrowth(displayAmount, changeRate, 4);
+      year2Amount = Math.round(year1Amount * (1 + changeRate / 100));
+      year3Amount = Math.round(year2Amount * (1 + changeRate / 100));
+      year5Amount = calculateCompoundGrowth(year1Amount, changeRate, 4);
 
       calculationMethod = `年率${changeRate}%の複利計算`;
     } else {
       calculationMethod = "変動なし（固定額）";
     }
 
-    // 年額表示用の金額計算
-    const getYearlyAmount = (amount: number) => {
-      return frequency === "monthly" ? amount * 12 : amount;
+    // 表示用の金額（月額設定の場合は月額も表示）
+    const getDisplayAmount = (yearlyAmount: number) => {
+      if (frequency === "monthly") {
+        const monthlyAmount = Math.round(yearlyAmount / 12);
+        return `${formatNumber(yearlyAmount)}円 (${formatNumber(monthlyAmount)}円/月)`;
+      } else {
+        return `${formatNumber(yearlyAmount)}円`;
+      }
     };
 
     return (
       <div>
         <div className="font-medium mb-2 text-gray-700">
-          計算例（基準金額: {formatNumber(displayAmount)}円{frequency === "monthly" ? "/月" : "/年"}）
+          計算例（ベース金額: {formatNumber(baseAmount)}円{frequency === "monthly" ? "/月" : "/年"}）
         </div>
 
         <div className="space-y-2 text-sm">
@@ -505,56 +500,31 @@ export function AmountDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="text-gray-600">初年度({startYear}):</div>
+            <div className="text-gray-600">{startYear}年度:</div>
             <div className="font-medium">
-              {formatNumber(displayAmount)}円
-              {frequency === "monthly" && (
-                <span className="text-xs text-gray-500">
-                  /月 (年額: {formatNumber(getYearlyAmount(year1Amount))}円)
-                </span>
-              )}
+              {getDisplayAmount(year1Amount)}
             </div>
 
-            {(changeAmount !== undefined || changeRate !== undefined) && (
+            {(changeAmount !== undefined || (changeRate !== undefined && changeRate !== 0)) && (
               <>
-                <div className="text-gray-600">2年目({startYear + 1}):</div>
+                <div className="text-gray-600">{startYear + 1}年度:</div>
                 <div className="font-medium">
-                  {formatNumber(year2Amount)}円
-                  {frequency === "monthly" && (
-                    <span className="text-xs text-gray-500">
-                      /月 (年額: {formatNumber(getYearlyAmount(year2Amount))}円)
-                    </span>
-                  )}
-                  {displayChangeAmount !== undefined && (
-                    <span className="text-xs text-blue-600 ml-1">
-                      ({displayChangeAmount >= 0 ? '+' : ''}{formatNumber(displayChangeAmount)}円{frequency === "monthly" ? "/月" : "/年"})
-                    </span>
-                  )}
-                  {changeRate !== undefined && (
+                  {getDisplayAmount(year2Amount)}
+                  {changeRate !== undefined && changeRate !== 0 && (
                     <span className="text-xs text-blue-600 ml-1">
                       ({changeRate >= 0 ? '+' : ''}{changeRate}%)
                     </span>
                   )}
                 </div>
 
-                <div className="text-gray-600">3年目({startYear + 2}):</div>
+                <div className="text-gray-600">{startYear + 2}年度:</div>
                 <div className="font-medium">
-                  {formatNumber(year3Amount)}円
-                  {frequency === "monthly" && (
-                    <span className="text-xs text-gray-500">
-                      /月 (年額: {formatNumber(getYearlyAmount(year3Amount))}円)
-                    </span>
-                  )}
+                  {getDisplayAmount(year3Amount)}
                 </div>
 
-                <div className="text-gray-600">5年目({startYear + 4}):</div>
+                <div className="text-gray-600">{startYear + 4}年度:</div>
                 <div className="font-medium">
-                  {formatNumber(year5Amount)}円
-                  {frequency === "monthly" && (
-                    <span className="text-xs text-gray-500">
-                      /月 (年額: {formatNumber(getYearlyAmount(year5Amount))}円)
-                    </span>
-                  )}
+                  {getDisplayAmount(year5Amount)}
                 </div>
               </>
             )}
@@ -802,7 +772,7 @@ export function AmountDialog({
                               }}
                               onFocus={() => setFocusedField('changeAmount')}
                               onBlur={() => setFocusedField(null)}
-                              placeholder="例: 100000 (年10万円増)"
+                              placeholder="年10万円増の場合、100000"
                             />
                           </div>
                         </div>
@@ -835,7 +805,7 @@ export function AmountDialog({
                               onChange={(e) =>
                                 updateUnifiedData('changeRate', handleNumberInput(e.target.value, 'changeRate'))
                               }
-                              placeholder="例: 3 (年3%増の場合)"
+                              placeholder="年5%増の場合、5"
                               min="-100"
                               max="1000"
                             />
