@@ -8,6 +8,7 @@ import { PlanManagementDialog } from "@/components/dialogs/plan-management-dialo
 import { AddPlanDialog } from "@/components/dialogs/add-plan-dialog";
 import { AmountDialog } from "@/components/dialogs/amount-dialog";
 import { usePlanStore } from "@/lib/store/plan-store";
+import { StorageDebugger } from "@/components/debug/StorageDebugger";
 
 export function TransitionHeader() {
   const { 
@@ -108,23 +109,6 @@ export function TransitionHeader() {
         onOpenChange={(open) => {
           if (!open) closeDialog(DIALOG_IDS.AMOUNT_SETTING);
         }}
-        itemId={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemId?: string })?.itemId || ""}
-        itemName={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemName?: string })?.itemName || "項目"}
-        itemType={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemType?: "flow" | "stock" })?.itemType || "flow"}
-        planName={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { planName?: string })?.planName || "デフォルトプラン"}
-        useUnifiedForm={true}
-        onSaveUnified={(data) => {
-          console.log('金額設定保存:', data);
-          // TODO: usePlanStoreでの保存処理を実装
-          goBack();
-        }}
-      />
-
-      <AmountDialog
-        open={isDialogOpen(DIALOG_IDS.AMOUNT_SETTING)}
-        onOpenChange={(open) => {
-          if (!open) closeDialog(DIALOG_IDS.AMOUNT_SETTING);
-        }}
         itemId={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemId?: string })?.itemId}
         itemName={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemName?: string })?.itemName}
         itemType={(getDialogData(DIALOG_IDS.AMOUNT_SETTING) as { itemType?: "flow" | "stock" })?.itemType}
@@ -150,6 +134,8 @@ export function TransitionHeader() {
           }
         }}
       />
+      
+      <StorageDebugger />
     </>
   );
 }

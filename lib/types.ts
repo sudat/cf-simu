@@ -5,6 +5,7 @@ export interface FlowItemDetail {
   amount: number; // 金額
   frequency: "monthly" | "yearly"; // 頻度
   growthRate: number; // 年率増減 (%)
+  yearlyChange?: number; // 年額増減（固定額の増減）
 }
 
 // ストック項目（資産・負債）の設定

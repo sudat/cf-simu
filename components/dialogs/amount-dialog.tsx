@@ -29,6 +29,7 @@ import {
   AmountSettingFormData,
   ValidationErrors,
 } from "@/lib/types";
+import { usePlanStore } from "@/lib/store/plan-store";
 
 interface AmountDialogProps {
   open: boolean;
@@ -63,6 +64,7 @@ export function AmountDialog({
     amount: 0,
     frequency: "monthly",
     growthRate: 0,
+    yearlyChange: undefined,
   });
 
   // ストック項目の状態
@@ -123,6 +125,7 @@ export function AmountDialog({
         amount: data.baseAmount || 0,
         frequency: data.frequency,
         growthRate: data.changeRate || 0,
+        yearlyChange: data.changeAmount || undefined,
       } as FlowItemDetail;
     } else {
       return {
@@ -142,7 +145,7 @@ export function AmountDialog({
         startYear: flowData.startYear,
         endYear: flowData.endYear,
         baseAmount: flowData.amount || 0,
-        changeAmount: undefined,
+        changeAmount: flowData.yearlyChange || undefined,
         changeRate: flowData.growthRate || undefined,
         frequency: flowData.frequency,
       };
@@ -226,10 +229,7 @@ export function AmountDialog({
       }
     }
 
-    // 増減金額と増減率の同時指定チェック
-    if (data.changeAmount !== undefined && data.changeRate !== undefined) {
-      newErrors.general = "増減金額と増減率は同時に指定できません。";
-    }
+    // 増減金額と増減率の同時指定は許可（削除）
 
     return newErrors;
   };
@@ -237,10 +237,28 @@ export function AmountDialog({
   // 初期データの設定
   useEffect(() => {
     if (open) {
+      // ストアから現在の設定を取得
+      let storedSetting = null;
+      if (itemId && planName) {
+        const parts = itemId.split('-');
+        if (parts.length >= 2) {
+          const category = parts[0] as 'income' | 'expense' | 'asset' | 'debt';
+          const itemName = parts.slice(1).join('-');
+          const categoryKey = category === 'income' ? 'incomes' :
+            category === 'expense' ? 'expenses' :
+              category === 'asset' ? 'assets' : 'debts';
+          
+          const state = usePlanStore.getState();
+          storedSetting = state[categoryKey]?.[itemName]?.settings?.[planName] || null;
+        }
+      }
+      
+      const dataToUse = initialData || storedSetting;
+      
       if (useUnifiedForm) {
         // 統合フォームモード
-        if (initialData) {
-          setUnifiedData(convertLegacyToUnified(initialData));
+        if (dataToUse) {
+          setUnifiedData(convertLegacyToUnified(dataToUse));
         } else {
           setUnifiedData({
             startYear: new Date().getFullYear(),
@@ -254,11 +272,11 @@ export function AmountDialog({
         setErrors({});
       } else {
         // 既存モード
-        if (initialData) {
+        if (dataToUse) {
           if (itemType === "flow") {
-            setFlowData(initialData as FlowItemDetail);
+            setFlowData(dataToUse as FlowItemDetail);
           } else {
-            setStockData(initialData as StockItemDetail);
+            setStockData(dataToUse as StockItemDetail);
           }
         } else {
           // リセット
@@ -268,6 +286,7 @@ export function AmountDialog({
             amount: 0,
             frequency: "monthly",
             growthRate: 0,
+            yearlyChange: undefined,
           });
           setStockData({
             baseYear: 2024,
@@ -278,7 +297,7 @@ export function AmountDialog({
         }
       }
     }
-  }, [open, initialData, itemType, useUnifiedForm, convertLegacyToUnified]);
+  }, [open, initialData, itemType, useUnifiedForm, convertLegacyToUnified, itemId, planName]);
 
   // 統合フォームのバリデーション
   useEffect(() => {
@@ -408,6 +427,10 @@ export function AmountDialog({
 
     // 年額/月額の換算を考慮
     const displayAmount = frequency === "monthly" ? Math.round(baseAmount / 12) : baseAmount;
+    
+    // 増減金額も月額/年額に応じて換算
+    const displayChangeAmount = changeAmount !== undefined ? 
+      (frequency === "monthly" ? Math.round(changeAmount / 12) : changeAmount) : undefined;
 
     const year1Amount = displayAmount;
     let year2Amount = displayAmount;
@@ -417,15 +440,43 @@ export function AmountDialog({
     // 計算方法の説明
     let calculationMethod = "";
 
-    if (changeAmount !== undefined) {
-      // 増減金額による計算（単純増減）
-      year2Amount = displayAmount + changeAmount;
-      year3Amount = displayAmount + (changeAmount * 2);
-      year5Amount = displayAmount + (changeAmount * 4);
+    if (displayChangeAmount !== undefined && changeRate !== undefined) {
+      // 増減金額と増減率の両方が指定された場合（複利 + 固定増減）
+      let currentAmount = displayAmount;
+      year2Amount = Math.round(currentAmount * (1 + changeRate / 100)) + displayChangeAmount;
+      year3Amount = Math.round(year2Amount * (1 + changeRate / 100)) + displayChangeAmount;
 
-      calculationMethod = `毎年${changeAmount >= 0 ? '+' : ''}${formatNumber(changeAmount)}円の増減`;
+      // 5年目の計算
+      currentAmount = displayAmount;
+      for (let i = 1; i < 5; i++) {
+        currentAmount = Math.round(currentAmount * (1 + changeRate / 100)) + displayChangeAmount;
+      }
+      year5Amount = currentAmount;
+
+      const changeAmountText = frequency === "monthly" ? 
+        `毎月${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円` :
+        `毎年${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円`;
+      calculationMethod = `年率${changeRate}%の複利 + ${changeAmountText}の増減`;
+    } else if (displayChangeAmount !== undefined) {
+      // 増減金額のみ（単純増減）
+      if (frequency === "monthly") {
+        // 月額の場合：毎月の増減
+        year2Amount = displayAmount + displayChangeAmount; // 月額での増加
+        year3Amount = displayAmount + (displayChangeAmount * 2);
+        year5Amount = displayAmount + (displayChangeAmount * 4);
+      } else {
+        // 年額の場合：毎年の増減
+        year2Amount = displayAmount + displayChangeAmount;
+        year3Amount = displayAmount + (displayChangeAmount * 2);
+        year5Amount = displayAmount + (displayChangeAmount * 4);
+      }
+
+      const changeAmountText = frequency === "monthly" ? 
+        `毎月${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円` :
+        `毎年${displayChangeAmount >= 0 ? '+' : ''}${formatNumber(displayChangeAmount)}円`;
+      calculationMethod = `${changeAmountText}の増減`;
     } else if (changeRate !== undefined) {
-      // 増減率による計算（複利計算）
+      // 増減率のみ（複利計算）
       year2Amount = calculateCompoundGrowth(displayAmount, changeRate, 1);
       year3Amount = calculateCompoundGrowth(displayAmount, changeRate, 2);
       year5Amount = calculateCompoundGrowth(displayAmount, changeRate, 4);
@@ -474,9 +525,9 @@ export function AmountDialog({
                       /月 (年額: {formatNumber(getYearlyAmount(year2Amount))}円)
                     </span>
                   )}
-                  {changeAmount !== undefined && (
+                  {displayChangeAmount !== undefined && (
                     <span className="text-xs text-blue-600 ml-1">
-                      ({changeAmount >= 0 ? '+' : ''}{formatNumber(changeAmount)}円)
+                      ({displayChangeAmount >= 0 ? '+' : ''}{formatNumber(displayChangeAmount)}円{frequency === "monthly" ? "/月" : "/年"})
                     </span>
                   )}
                   {changeRate !== undefined && (
@@ -604,7 +655,7 @@ export function AmountDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[75vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{itemName} - 金額設定</DialogTitle>
           <DialogDescription>
@@ -712,8 +763,8 @@ export function AmountDialog({
                   </Tooltip>
                 </TooltipProvider>
 
-                <RadioGroup 
-                  value={unifiedData.frequency} 
+                <RadioGroup
+                  value={unifiedData.frequency}
                   onValueChange={(value) => updateUnifiedData('frequency', value)}
                   className="flex gap-6"
                 >
@@ -788,7 +839,7 @@ export function AmountDialog({
                               min="-100"
                               max="1000"
                             />
-                            <span className="absolute right-3 top-3 text-gray-500">%</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">%</span>
                           </div>
                         </div>
                       </TooltipTrigger>
@@ -945,7 +996,7 @@ export function AmountDialog({
                     }
                     placeholder="例: 3 (年3%増の場合)"
                   />
-                  <span className="absolute right-3 top-3 text-gray-500">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                     %
                   </span>
                 </div>
@@ -1022,7 +1073,7 @@ export function AmountDialog({
                     }
                     placeholder="例: 10 (10%の場合)"
                   />
-                  <span className="absolute right-3 top-3 text-gray-500">
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
                     %
                   </span>
                 </div>

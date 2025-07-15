@@ -1,11 +1,47 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { PlanState, AddItemData, PlanDefinition, AmountSettingFormData, FlowItemDetail, StockItemDetail } from "../types";
 
-// 初期データ（空）
+// 初期データ（テスト用項目を含む）
 const initialState: PlanState = {
-  plans: {},
-  incomes: {},
-  expenses: {},
+  plans: {
+    "給与": {
+      availablePlans: ["デフォルトプラン"],
+      activePlan: "デフォルトプラン",
+    },
+    "生活費": {
+      availablePlans: ["デフォルトプラン"],
+      activePlan: "デフォルトプラン",
+    },
+  },
+  incomes: {
+    "給与": {
+      type: "flow",
+      settings: {
+        デフォルトプラン: {
+          startYear: 2024,
+          amount: 500000,
+          frequency: "monthly",
+          growthRate: 3,
+          yearlyChange: undefined,
+        },
+      },
+    },
+  },
+  expenses: {
+    "生活費": {
+      type: "flow",
+      settings: {
+        デフォルトプラン: {
+          startYear: 2024,
+          amount: 300000,
+          frequency: "monthly",
+          growthRate: 2,
+          yearlyChange: undefined,
+        },
+      },
+    },
+  },
   assets: {},
   debts: {},
 };
@@ -44,11 +80,13 @@ export interface PlanStore extends PlanState, GlobalPlanState {
   // ...今後: removeItem, updateItem など
 }
 
-export const usePlanStore = create<PlanStore>((set, get) => ({
-  ...initialState,
-  globalPlans: initialGlobalPlans,
-  lastError: null,
-  
+export const usePlanStore = create<PlanStore>()(
+  persist(
+    (set, get) => ({
+      ...initialState,
+      globalPlans: initialGlobalPlans,
+      lastError: null,
+
   addItem: (data) => {
     const { name, category, type } = data;
     // plans, incomes, expenses, assets, debts いずれかに追加
@@ -57,10 +95,16 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         category === "income"
           ? "incomes"
           : category === "expense"
-          ? "expenses"
-          : category === "asset"
-          ? "assets"
-          : "debts";
+            ? "expenses"
+            : category === "asset"
+              ? "assets"
+              : "debts";
+      
+      // 既に同じ項目が存在する場合はスキップ
+      if (state[key][name]) {
+        return state;
+      }
+      
       return {
         ...state,
         [key]: {
@@ -71,17 +115,18 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
               デフォルトプラン:
                 type === "flow"
                   ? {
-                      startYear: 2024,
-                      amount: 0,
-                      frequency: "monthly",
-                      growthRate: 0,
-                    }
+                    startYear: 2024,
+                    amount: 0,
+                    frequency: "monthly",
+                    growthRate: 0,
+                    yearlyChange: undefined,
+                  }
                   : {
-                      baseYear: 2024,
-                      baseAmount: 0,
-                      rate: 0,
-                      yearlyChange: 0,
-                    },
+                    baseYear: 2024,
+                    baseAmount: 0,
+                    rate: 0,
+                    yearlyChange: 0,
+                  },
             },
           },
         },
@@ -135,7 +180,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ],
         lastError: null,
       }));
-      
+
       return { success: true };
     } catch {
       const errorMessage = "プランの追加に失敗しました";
@@ -149,7 +194,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     try {
       const state = get();
       const plan = state.globalPlans.find((p) => p.id === id);
-      
+
       if (!plan) {
         const error = "削除対象のプランが見つかりません";
         set((state) => ({ ...state, lastError: error }));
@@ -163,7 +208,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       }
 
       const newPlans = state.globalPlans.filter((p) => p.id !== id);
-      
+
       // 削除されたプランがアクティブだった場合、デフォルトプランをアクティブにする
       if (plan.isActive) {
         const defaultPlan = newPlans.find((p) => p.isDefault);
@@ -177,7 +222,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         globalPlans: newPlans,
         lastError: null,
       }));
-      
+
       return { success: true };
     } catch {
       const errorMessage = "プランの削除に失敗しました";
@@ -191,7 +236,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     try {
       const state = get();
       const trimmedName = newName.trim();
-      
+
       if (!trimmedName) {
         const error = "プラン名を入力してください";
         set((state) => ({ ...state, lastError: error }));
@@ -226,7 +271,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ),
         lastError: null,
       }));
-      
+
       return { success: true };
     } catch {
       const errorMessage = "プラン名の変更に失敗しました";
@@ -240,7 +285,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     try {
       const state = get();
       const targetPlan = state.globalPlans.find((p) => p.id === id);
-      
+
       if (!targetPlan) {
         const error = "指定されたプランが見つかりません";
         set((state) => ({ ...state, lastError: error }));
@@ -255,7 +300,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         })),
         lastError: null,
       }));
-      
+
       return { success: true };
     } catch {
       const errorMessage = "アクティブプランの設定に失敗しました";
@@ -293,29 +338,41 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       // 統合フォームデータを従来型に変換
       let setting: FlowItemDetail | StockItemDetail;
-      
+
+      console.log('Saving amount setting:', {
+        itemId,
+        planName,
+        category,
+        itemName,
+        itemType,
+        originalData: data
+      });
+
       if (itemType === 'flow') {
         setting = {
           startYear: data.startYear,
           endYear: data.endYear,
-          amount: 0, // 基本金額は別途設定（現在は0）
+          amount: data.baseAmount || 0,
           frequency: data.frequency,
           growthRate: data.changeRate || 0,
+          yearlyChange: data.changeAmount || undefined,
         } as FlowItemDetail;
       } else {
         setting = {
           baseYear: data.startYear,
-          baseAmount: 0, // 基本金額は別途設定（現在は0）
+          baseAmount: data.baseAmount || 0,
           rate: data.changeRate || 0,
           yearlyChange: data.changeAmount || 0,
         } as StockItemDetail;
       }
 
+      console.log('Converted setting:', setting);
+
       // 状態を更新
       set((state) => {
         const categoryKey = category === 'income' ? 'incomes' :
-                           category === 'expense' ? 'expenses' :
-                           category === 'asset' ? 'assets' : 'debts';
+          category === 'expense' ? 'expenses' :
+            category === 'asset' ? 'assets' : 'debts';
 
         const categoryData = state[categoryKey];
         if (!categoryData[itemName]) {
@@ -323,7 +380,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           return { ...state, lastError: error };
         }
 
-        return {
+        const newState = {
           ...state,
           [categoryKey]: {
             ...categoryData,
@@ -337,6 +394,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           },
           lastError: null,
         };
+
+        console.log('Updated state:', {
+          categoryKey,
+          itemName,
+          planName,
+          savedSetting: newState[categoryKey][itemName].settings[planName]
+        });
+
+        return newState;
       });
 
       return { success: true };
@@ -351,4 +417,18 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   clearError: () => {
     set((state) => ({ ...state, lastError: null }));
   },
-}));
+    }),
+    {
+      name: 'plan-store', // localStorage key
+      partialize: (state) => ({
+        // 永続化対象から一時的なエラー状態は除外
+        plans: state.plans,
+        incomes: state.incomes,
+        expenses: state.expenses,
+        assets: state.assets,
+        debts: state.debts,
+        globalPlans: state.globalPlans,
+      }),
+    }
+  )
+);
