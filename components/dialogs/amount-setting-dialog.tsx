@@ -13,24 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-
-// 金額設定データの型定義
-export interface AmountSettingFormData {
-  startYear: number; // 年度(開始)
-  endYear?: number; // 年度(終了) - 空欄可
-  changeAmount?: number; // 増減金額 - 空欄可
-  changeRate?: number; // 増減率(%) - 空欄可、整数のみ
-  frequency: "yearly" | "monthly"; // 年額/月額
-}
-
-// バリデーションエラーの型定義
-interface ValidationErrors {
-  startYear?: string;
-  endYear?: string;
-  changeAmount?: string;
-  changeRate?: string;
-  general?: string;
-}
+import { AmountSettingFormData, ValidationErrors } from "@/lib/types";
 
 interface AmountSettingDialogProps {
   open: boolean;
@@ -95,9 +78,9 @@ export function AmountSettingDialog({
   const validateForm = (data: AmountSettingFormData): ValidationErrors => {
     const newErrors: ValidationErrors = {};
 
-    // 年度(開始)のバリデーション
+    // 開始のバリデーション
     if (!data.startYear) {
-      newErrors.startYear = "年度(開始)は必須です";
+      newErrors.startYear = "開始は必須です";
     } else if (isNaN(data.startYear)) {
       newErrors.startYear = "有効な年度を入力してください";
     } else if (data.startYear < 1900 || data.startYear > 2100) {
@@ -106,7 +89,7 @@ export function AmountSettingDialog({
       newErrors.startYear = "年度は整数で入力してください";
     }
 
-    // 年度(終了)のバリデーション
+    // 終了のバリデーション
     if (data.endYear !== undefined) {
       if (isNaN(data.endYear)) {
         newErrors.endYear = "有効な年度を入力してください";
@@ -171,14 +154,14 @@ export function AmountSettingDialog({
     if (value === '') {
       return field === 'startYear' ? new Date().getFullYear() : undefined;
     }
-    
+
     const numValue = parseInt(value);
-    
+
     // NaNの場合はundefined（ただしstartYearは現在年を返す）
     if (isNaN(numValue)) {
       return field === 'startYear' ? new Date().getFullYear() : undefined;
     }
-    
+
     return numValue;
   };
 
@@ -190,12 +173,12 @@ export function AmountSettingDialog({
   // 最終検証処理
   const performFinalValidation = (data: AmountSettingFormData): { isValid: boolean; errors: ValidationErrors } => {
     const errors = validateForm(data);
-    
+
     // 追加の最終検証項目
     if (!errors.startYear && !data.startYear) {
-      errors.startYear = "年度(開始)は必須項目です";
+      errors.startYear = "開始は必須項目です";
     }
-    
+
     // 現実的でない組み合わせの検証
     if (data.endYear && data.changeRate && Math.abs(data.changeRate) > 20) {
       const years = data.endYear - data.startYear;
@@ -205,7 +188,7 @@ export function AmountSettingDialog({
         }
       }
     }
-    
+
     return {
       isValid: Object.keys(errors).length === 0,
       errors
@@ -215,7 +198,7 @@ export function AmountSettingDialog({
   // 保存処理
   const handleSave = () => {
     const validation = performFinalValidation(formData);
-    
+
     if (!validation.isValid) {
       setErrors(validation.errors);
       return;
@@ -257,7 +240,7 @@ export function AmountSettingDialog({
     if (!startYear || isNaN(startYear)) {
       return (
         <div className="text-gray-500 text-center py-4">
-          年度(開始)を正しく入力してください
+          開始を正しく入力してください
         </div>
       );
     }
@@ -278,7 +261,7 @@ export function AmountSettingDialog({
 
     // 年額/月額の換算を考慮
     const displayAmount = frequency === "monthly" ? Math.round(baseAmount / 12) : baseAmount;
-    
+
     const year1Amount = displayAmount;
     let year2Amount = displayAmount;
     let year3Amount = displayAmount;
@@ -292,14 +275,14 @@ export function AmountSettingDialog({
       year2Amount = displayAmount + changeAmount;
       year3Amount = displayAmount + (changeAmount * 2);
       year5Amount = displayAmount + (changeAmount * 4);
-      
+
       calculationMethod = `毎年${changeAmount >= 0 ? '+' : ''}${formatNumber(changeAmount)}円の増減`;
     } else if (changeRate !== undefined) {
       // 増減率による計算（複利計算）
       year2Amount = calculateCompoundGrowth(displayAmount, changeRate, 1);
       year3Amount = calculateCompoundGrowth(displayAmount, changeRate, 2);
       year5Amount = calculateCompoundGrowth(displayAmount, changeRate, 4);
-      
+
       calculationMethod = `年率${changeRate}%の複利計算`;
     } else {
       calculationMethod = "変動なし（固定額）";
@@ -315,14 +298,14 @@ export function AmountSettingDialog({
         <div className="font-medium mb-2 text-gray-700">
           計算例（基準金額: {formatNumber(displayAmount)}円{frequency === "monthly" ? "/月" : "/年"}）
         </div>
-        
+
         <div className="space-y-2 text-sm">
           <div className="bg-blue-50 p-2 rounded text-blue-800">
-            📅 期間: {startYear}/4/1～{endText}<br/>
-            💰 設定: {frequencyText}ベース<br/>
+            📅 期間: {startYear}/4/1～{endText}<br />
+            💰 設定: {frequencyText}ベース<br />
             📊 計算方法: {calculationMethod}
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2">
             <div className="text-gray-600">初年度({startYear}):</div>
             <div className="font-medium">
@@ -333,7 +316,7 @@ export function AmountSettingDialog({
                 </span>
               )}
             </div>
-            
+
             {(changeAmount !== undefined || changeRate !== undefined) && (
               <>
                 <div className="text-gray-600">2年目({startYear + 1}):</div>
@@ -355,7 +338,7 @@ export function AmountSettingDialog({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="text-gray-600">3年目({startYear + 2}):</div>
                 <div className="font-medium">
                   {formatNumber(year3Amount)}円
@@ -365,7 +348,7 @@ export function AmountSettingDialog({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="text-gray-600">5年目({startYear + 4}):</div>
                 <div className="font-medium">
                   {formatNumber(year5Amount)}円
@@ -378,7 +361,7 @@ export function AmountSettingDialog({
               </>
             )}
           </div>
-          
+
           {changeRate !== undefined && changeRate !== 0 && (
             <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
               💡 複利効果: {Math.abs(changeRate)}%の年率で
@@ -409,13 +392,13 @@ export function AmountSettingDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startYear" className="text-sm font-medium">
-                年度(開始) <span className="text-red-500">*</span>
+                開始 <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="startYear"
                 type="number"
                 value={formData.startYear}
-                onChange={(e) => 
+                onChange={(e) =>
                   updateFormData('startYear', handleNumberInput(e.target.value, 'startYear'))
                 }
                 className={errors.startYear ? "border-red-500" : ""}
@@ -430,14 +413,14 @@ export function AmountSettingDialog({
 
             <div className="space-y-2">
               <Label htmlFor="endYear" className="text-sm font-medium">
-                年度(終了)
+                終了
                 <span className="text-xs text-gray-500 ml-1">※空欄可</span>
               </Label>
               <Input
                 id="endYear"
                 type="number"
                 value={formData.endYear || ""}
-                onChange={(e) => 
+                onChange={(e) =>
                   updateFormData('endYear', handleNumberInput(e.target.value, 'endYear'))
                 }
                 className={errors.endYear ? "border-red-500" : ""}
@@ -465,7 +448,7 @@ export function AmountSettingDialog({
                   type="number"
                   className={`pl-8 ${errors.changeAmount ? "border-red-500" : ""}`}
                   value={formData.changeAmount || ""}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     updateFormData('changeAmount', handleNumberInput(e.target.value, 'changeAmount'))
                   }
                   placeholder="例: 100000 (年10万円増)"
@@ -490,7 +473,7 @@ export function AmountSettingDialog({
                   step="1"
                   className={`pr-8 ${errors.changeRate ? "border-red-500" : ""}`}
                   value={formData.changeRate || ""}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     updateFormData('changeRate', handleNumberInput(e.target.value, 'changeRate'))
                   }
                   placeholder="例: 3 (年3%増の場合)"

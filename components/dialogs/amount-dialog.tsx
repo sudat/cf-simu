@@ -14,6 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import {
   FlowItemDetail,
   StockItemDetail,
   ItemType,
@@ -69,17 +76,35 @@ export function AmountDialog({
   const [unifiedData, setUnifiedData] = useState<AmountSettingFormData>({
     startYear: new Date().getFullYear(),
     endYear: undefined,
+    baseAmount: 0,
     changeAmount: undefined,
     changeRate: undefined,
     frequency: "yearly",
   });
 
+
+
   // バリデーションエラー状態
   const [errors, setErrors] = useState<ValidationErrors>({});
+
+  // フォーカス状態管理（どのフィールドがフォーカスされているか）
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   // 数値フォーマット関数
   const formatNumber = (value: number): string => {
     return value.toLocaleString('ja-JP');
+  };
+
+  // 数値入力フィールドの表示値を取得（フォーカス時は生の値、非フォーカス時は3桁区切り）
+  const getDisplayValue = (value: number | undefined, fieldName: string): string => {
+    if (value === undefined || value === null) return "";
+    if (focusedField === fieldName) {
+      // フォーカス時は生の値を表示
+      return value.toString();
+    } else {
+      // 非フォーカス時は3桁区切りで表示
+      return formatNumber(value);
+    }
   };
 
   // 複利計算関数
@@ -94,14 +119,14 @@ export function AmountDialog({
       return {
         startYear: data.startYear,
         endYear: data.endYear,
-        amount: 0, // 金額は別途設定
+        amount: data.baseAmount || 0,
         frequency: data.frequency,
         growthRate: data.changeRate || 0,
       } as FlowItemDetail;
     } else {
       return {
         baseYear: data.startYear,
-        baseAmount: 0, // 金額は別途設定
+        baseAmount: data.baseAmount || 0,
         rate: data.changeRate || 0,
         yearlyChange: data.changeAmount || 0,
       } as StockItemDetail;
@@ -115,6 +140,7 @@ export function AmountDialog({
       return {
         startYear: flowData.startYear,
         endYear: flowData.endYear,
+        baseAmount: flowData.amount || 0,
         changeAmount: undefined,
         changeRate: flowData.growthRate || undefined,
         frequency: flowData.frequency,
@@ -124,6 +150,7 @@ export function AmountDialog({
       return {
         startYear: stockData.baseYear,
         endYear: undefined,
+        baseAmount: stockData.baseAmount || 0,
         changeAmount: stockData.yearlyChange || undefined,
         changeRate: stockData.rate || undefined,
         frequency: "yearly",
@@ -135,9 +162,9 @@ export function AmountDialog({
   const validateUnifiedForm = (data: AmountSettingFormData): ValidationErrors => {
     const newErrors: ValidationErrors = {};
 
-    // 年度(開始)のバリデーション
+    // 開始のバリデーション
     if (!data.startYear) {
-      newErrors.startYear = "年度(開始)は必須です";
+      newErrors.startYear = "開始は必須です";
     } else if (isNaN(data.startYear)) {
       newErrors.startYear = "有効な年度を入力してください";
     } else if (data.startYear < 1900 || data.startYear > 2100) {
@@ -146,7 +173,7 @@ export function AmountDialog({
       newErrors.startYear = "年度は整数で入力してください";
     }
 
-    // 年度(終了)のバリデーション
+    // 終了のバリデーション
     if (data.endYear !== undefined) {
       if (isNaN(data.endYear)) {
         newErrors.endYear = "有効な年度を入力してください";
@@ -159,6 +186,19 @@ export function AmountDialog({
       } else if ((data.endYear - data.startYear) > 100) {
         newErrors.endYear = "期間は100年以内にしてください";
       }
+    }
+
+    // ベース金額のバリデーション
+    if (data.baseAmount === undefined || data.baseAmount === null) {
+      newErrors.baseAmount = "ベース金額は必須です";
+    } else if (isNaN(data.baseAmount)) {
+      newErrors.baseAmount = "有効な金額を入力してください";
+    } else if (data.baseAmount < 0) {
+      newErrors.baseAmount = "金額は0以上で入力してください";
+    } else if (!Number.isInteger(data.baseAmount)) {
+      newErrors.baseAmount = "金額は整数で入力してください";
+    } else if (data.baseAmount > 999999999) {
+      newErrors.baseAmount = "金額は9億円以内で入力してください";
     }
 
     // 増減金額のバリデーション
@@ -204,6 +244,7 @@ export function AmountDialog({
           setUnifiedData({
             startYear: new Date().getFullYear(),
             endYear: undefined,
+            baseAmount: 0,
             changeAmount: undefined,
             changeRate: undefined,
             frequency: "yearly",
@@ -288,7 +329,7 @@ export function AmountDialog({
 
       onSave?.(data);
     }
-    
+
     onOpenChange(false);
   };
 
@@ -297,17 +338,21 @@ export function AmountDialog({
   };
 
   // 数値入力のフォーマット処理関数
-  const handleNumberInput = (value: string, field: 'startYear' | 'endYear' | 'changeAmount' | 'changeRate') => {
+  const handleNumberInput = (value: string, field: 'startYear' | 'endYear' | 'baseAmount' | 'changeAmount' | 'changeRate') => {
     if (value === '') {
-      return field === 'startYear' ? new Date().getFullYear() : undefined;
+      if (field === 'startYear') return new Date().getFullYear();
+      if (field === 'baseAmount') return 0;
+      return undefined;
     }
-    
+
     const numValue = parseInt(value);
-    
+
     if (isNaN(numValue)) {
-      return field === 'startYear' ? new Date().getFullYear() : undefined;
+      if (field === 'startYear') return new Date().getFullYear();
+      if (field === 'baseAmount') return 0;
+      return undefined;
     }
-    
+
     return numValue;
   };
 
@@ -329,12 +374,12 @@ export function AmountDialog({
 
   // 統合フォームの計算例
   const getUnifiedCalculationExample = () => {
-    const { startYear, endYear, changeAmount, changeRate, frequency } = unifiedData;
+    const { startYear, endYear, baseAmount, changeAmount, changeRate, frequency } = unifiedData;
 
     if (!startYear || isNaN(startYear)) {
       return (
         <div className="text-gray-500 text-center py-4">
-          年度(開始)を正しく入力してください
+          開始を正しく入力してください
         </div>
       );
     }
@@ -351,11 +396,11 @@ export function AmountDialog({
 
     const frequencyText = frequency === "monthly" ? "月額" : "年額";
     const endText = endYear ? `${endYear + 1}/3/31` : "永続";
-    const baseAmount = 1000000; // 計算例用の基準金額
+    const currentBaseAmount = baseAmount || 0; // 実際のベース金額を使用
 
     // 年額/月額の換算を考慮
-    const displayAmount = frequency === "monthly" ? Math.round(baseAmount / 12) : baseAmount;
-    
+    const displayAmount = frequency === "monthly" ? Math.round(currentBaseAmount / 12) : currentBaseAmount;
+
     const year1Amount = displayAmount;
     let year2Amount = displayAmount;
     let year3Amount = displayAmount;
@@ -369,14 +414,14 @@ export function AmountDialog({
       year2Amount = displayAmount + changeAmount;
       year3Amount = displayAmount + (changeAmount * 2);
       year5Amount = displayAmount + (changeAmount * 4);
-      
+
       calculationMethod = `毎年${changeAmount >= 0 ? '+' : ''}${formatNumber(changeAmount)}円の増減`;
     } else if (changeRate !== undefined) {
       // 増減率による計算（複利計算）
       year2Amount = calculateCompoundGrowth(displayAmount, changeRate, 1);
       year3Amount = calculateCompoundGrowth(displayAmount, changeRate, 2);
       year5Amount = calculateCompoundGrowth(displayAmount, changeRate, 4);
-      
+
       calculationMethod = `年率${changeRate}%の複利計算`;
     } else {
       calculationMethod = "変動なし（固定額）";
@@ -392,14 +437,14 @@ export function AmountDialog({
         <div className="font-medium mb-2 text-gray-700">
           計算例（基準金額: {formatNumber(displayAmount)}円{frequency === "monthly" ? "/月" : "/年"}）
         </div>
-        
+
         <div className="space-y-2 text-sm">
           <div className="bg-blue-50 p-2 rounded text-blue-800">
-            📅 期間: {startYear}/4/1～{endText}<br/>
-            💰 設定: {frequencyText}ベース<br/>
+            📅 期間: {startYear}/4/1～{endText}<br />
+            💰 設定: {frequencyText}ベース<br />
             📈 計算方法: {calculationMethod}
           </div>
-          
+
           <div className="grid grid-cols-2 gap-2">
             <div className="text-gray-600">初年度({startYear}):</div>
             <div className="font-medium">
@@ -410,7 +455,7 @@ export function AmountDialog({
                 </span>
               )}
             </div>
-            
+
             {(changeAmount !== undefined || changeRate !== undefined) && (
               <>
                 <div className="text-gray-600">2年目({startYear + 1}):</div>
@@ -432,7 +477,7 @@ export function AmountDialog({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="text-gray-600">3年目({startYear + 2}):</div>
                 <div className="font-medium">
                   {formatNumber(year3Amount)}円
@@ -442,7 +487,7 @@ export function AmountDialog({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="text-gray-600">5年目({startYear + 4}):</div>
                 <div className="font-medium">
                   {formatNumber(year5Amount)}円
@@ -455,7 +500,7 @@ export function AmountDialog({
               </>
             )}
           </div>
-          
+
           {changeRate !== undefined && changeRate !== 0 && (
             <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
               💡 複利効果: {Math.abs(changeRate)}%の年率で
@@ -545,8 +590,8 @@ export function AmountDialog({
   };
 
   // フォームが有効かどうかの判定
-  const isFormValid = useUnifiedForm 
-    ? Object.keys(errors).length === 0 && unifiedData.startYear
+  const isFormValid = useUnifiedForm
+    ? Object.keys(errors).length === 0 && unifiedData.startYear && unifiedData.baseAmount !== undefined
     : true; // 既存モードは既存のロジックで判定
 
   return (
@@ -555,7 +600,7 @@ export function AmountDialog({
         <DialogHeader>
           <DialogTitle>{itemName} - 金額設定</DialogTitle>
           <DialogDescription>
-            {useUnifiedForm 
+            {useUnifiedForm
               ? `${planName}の金額変動パターンを設定します`
               : `${planName}の設定を行います`
             }
@@ -570,13 +615,13 @@ export function AmountDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="startYear" className="text-sm font-medium">
-                    年度(開始) <span className="text-red-500">*</span>
+                    開始 <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="startYear"
                     type="number"
                     value={unifiedData.startYear}
-                    onChange={(e) => 
+                    onChange={(e) =>
                       updateUnifiedData('startYear', handleNumberInput(e.target.value, 'startYear'))
                     }
                     className={errors.startYear ? "border-red-500" : ""}
@@ -590,15 +635,23 @@ export function AmountDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endYear" className="text-sm font-medium">
-                    年度(終了)
-                    <span className="text-xs text-gray-500 ml-1">※空欄可</span>
-                  </Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Label htmlFor="endYear" className="text-sm font-medium cursor-help">
+                          終了
+                        </Label>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>空欄の場合は永続的に継続します</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <Input
                     id="endYear"
                     type="number"
                     value={unifiedData.endYear || ""}
-                    onChange={(e) => 
+                    onChange={(e) =>
                       updateUnifiedData('endYear', handleNumberInput(e.target.value, 'endYear'))
                     }
                     className={errors.endYear ? "border-red-500" : ""}
@@ -612,63 +665,45 @@ export function AmountDialog({
                 </div>
               </div>
 
-              {/* 増減設定 */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="changeAmount" className="text-sm font-medium">
-                    増減金額
-                    <span className="text-xs text-gray-500 ml-1">※空欄可</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-3 text-gray-500">¥</span>
-                    <Input
-                      id="changeAmount"
-                      type="number"
-                      className={`pl-8 ${errors.changeAmount ? "border-red-500" : ""}`}
-                      value={unifiedData.changeAmount || ""}
-                      onChange={(e) => 
-                        updateUnifiedData('changeAmount', handleNumberInput(e.target.value, 'changeAmount'))
-                      }
-                      placeholder="例: 100000 (年10万円増)"
-                      min="-999999999"
-                      max="999999999"
-                    />
-                  </div>
-                  {errors.changeAmount && (
-                    <p className="text-xs text-red-600">{errors.changeAmount}</p>
-                  )}
+              {/* ベース金額設定 */}
+              <div className="space-y-2">
+                <Label htmlFor="baseAmount" className="text-sm font-medium">
+                  ベース金額 <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
+                  <Input
+                    id="baseAmount"
+                    type="text"
+                    className={`pl-8 ${errors.baseAmount ? "border-red-500" : ""}`}
+                    value={getDisplayValue(unifiedData.baseAmount, 'baseAmount')}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, '');
+                      updateUnifiedData('baseAmount', handleNumberInput(rawValue, 'baseAmount'));
+                    }}
+                    onFocus={() => setFocusedField('baseAmount')}
+                    onBlur={() => setFocusedField(null)}
+                    placeholder="例: 1000000 (100万円)"
+                  />
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="changeRate" className="text-sm font-medium">
-                    増減率
-                    <span className="text-xs text-gray-500 ml-1">※空欄可、整数のみ</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="changeRate"
-                      type="number"
-                      step="1"
-                      className={`pr-8 ${errors.changeRate ? "border-red-500" : ""}`}
-                      value={unifiedData.changeRate || ""}
-                      onChange={(e) => 
-                        updateUnifiedData('changeRate', handleNumberInput(e.target.value, 'changeRate'))
-                      }
-                      placeholder="例: 3 (年3%増の場合)"
-                      min="-100"
-                      max="1000"
-                    />
-                    <span className="absolute right-3 top-3 text-gray-500">%</span>
-                  </div>
-                  {errors.changeRate && (
-                    <p className="text-xs text-red-600">{errors.changeRate}</p>
-                  )}
-                </div>
+                {errors.baseAmount && (
+                  <p className="text-xs text-red-600">{errors.baseAmount}</p>
+                )}
               </div>
 
               {/* 年額/月額選択 */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">設定単位</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Label className="text-sm font-medium cursor-help">設定単位</Label>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>月額設定: 年間で12倍した金額で計算されます</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
                 <div className="flex gap-6">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -676,7 +711,9 @@ export function AmountDialog({
                       name="frequency"
                       value="yearly"
                       checked={unifiedData.frequency === "yearly"}
-                      onChange={(e) => updateUnifiedData('frequency', e.target.value)}
+                      onChange={() => {
+                        setUnifiedData(prev => ({ ...prev, frequency: "yearly" }));
+                      }}
                       className="w-4 h-4 text-blue-600"
                     />
                     <span className="text-sm">年額</span>
@@ -687,7 +724,9 @@ export function AmountDialog({
                       name="frequency"
                       value="monthly"
                       checked={unifiedData.frequency === "monthly"}
-                      onChange={(e) => updateUnifiedData('frequency', e.target.value)}
+                      onChange={() => {
+                        setUnifiedData(prev => ({ ...prev, frequency: "monthly" }));
+                      }}
                       className="w-4 h-4 text-blue-600"
                     />
                     <span className="text-sm">月額</span>
@@ -695,16 +734,78 @@ export function AmountDialog({
                 </div>
               </div>
 
-              {/* 入力ヘルプと注意事項 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <div className="text-sm text-blue-800">
-                  <div className="font-medium mb-1">📝 入力のヒント</div>
-                  <ul className="space-y-1 text-xs">
-                    <li>• 増減金額: 毎年同じ金額が増減します（例: 昇給、支出の削減）</li>
-                    <li>• 増減率: 複利で計算されます（例: 投資の年利、インフレ）</li>
-                    <li>• 終了年度: 空欄の場合は永続的に継続します</li>
-                    <li>• 月額設定: 年間で12倍した金額で計算されます</li>
-                  </ul>
+              {/* 増減設定 */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Label htmlFor="changeAmount" className="text-sm font-medium cursor-help">
+                            増減金額
+                          </Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
+                            <Input
+                              id="changeAmount"
+                              type="text"
+                              className={`pl-8 ${errors.changeAmount ? "border-red-500" : ""}`}
+                              value={getDisplayValue(unifiedData.changeAmount, 'changeAmount')}
+                              onChange={(e) => {
+                                const rawValue = e.target.value.replace(/,/g, '');
+                                updateUnifiedData('changeAmount', handleNumberInput(rawValue, 'changeAmount'));
+                              }}
+                              onFocus={() => setFocusedField('changeAmount')}
+                              onBlur={() => setFocusedField(null)}
+                              placeholder="例: 100000 (年10万円増)"
+                            />
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>毎年同じ金額が増減します（例: 昇給、支出の削減）</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {errors.changeAmount && (
+                    <p className="text-xs text-red-600">{errors.changeAmount}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Label htmlFor="changeRate" className="text-sm font-medium cursor-help">
+                            増減率
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="changeRate"
+                              type="number"
+                              step="1"
+                              className={`pr-8 ${errors.changeRate ? "border-red-500" : ""}`}
+                              value={unifiedData.changeRate || ""}
+                              onChange={(e) =>
+                                updateUnifiedData('changeRate', handleNumberInput(e.target.value, 'changeRate'))
+                              }
+                              placeholder="例: 3 (年3%増の場合)"
+                              min="-100"
+                              max="1000"
+                            />
+                            <span className="absolute right-3 top-3 text-gray-500">%</span>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>複利で計算されます（例: 投資の年利、インフレ）<br />整数のみ入力可能</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {errors.changeRate && (
+                    <p className="text-xs text-red-600">{errors.changeRate}</p>
+                  )}
                 </div>
               </div>
 
@@ -808,18 +909,21 @@ export function AmountDialog({
               <div className="space-y-2">
                 <Label htmlFor="amount">金額</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500">¥</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
                   <Input
                     id="amount"
-                    type="number"
+                    type="text"
                     className="pl-8"
-                    value={flowData.amount || ""}
-                    onChange={(e) =>
+                    value={getDisplayValue(flowData.amount, 'amount')}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, '');
                       setFlowData({
                         ...flowData,
-                        amount: parseInt(e.target.value) || 0,
-                      })
-                    }
+                        amount: parseInt(rawValue) || 0,
+                      });
+                    }}
+                    onFocus={() => setFocusedField('amount')}
+                    onBlur={() => setFocusedField(null)}
                     placeholder="0"
                   />
                 </div>
@@ -882,18 +986,21 @@ export function AmountDialog({
               <div className="space-y-2">
                 <Label htmlFor="baseAmount">基準時点の金額</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500">¥</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
                   <Input
                     id="baseAmount"
-                    type="number"
+                    type="text"
                     className="pl-8"
-                    value={stockData.baseAmount || ""}
-                    onChange={(e) =>
+                    value={getDisplayValue(stockData.baseAmount, 'stockBaseAmount')}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, '');
                       setStockData({
                         ...stockData,
-                        baseAmount: parseInt(e.target.value) || 0,
-                      })
-                    }
+                        baseAmount: parseInt(rawValue) || 0,
+                      });
+                    }}
+                    onFocus={() => setFocusedField('stockBaseAmount')}
+                    onBlur={() => setFocusedField(null)}
                     placeholder="0"
                   />
                 </div>
@@ -935,18 +1042,21 @@ export function AmountDialog({
                   </span>
                 </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-3 text-gray-500">¥</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">¥</span>
                   <Input
                     id="yearlyChange"
-                    type="number"
+                    type="text"
                     className="pl-8"
-                    value={stockData.yearlyChange || ""}
-                    onChange={(e) =>
+                    value={getDisplayValue(stockData.yearlyChange, 'yearlyChange')}
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, '');
                       setStockData({
                         ...stockData,
-                        yearlyChange: parseInt(e.target.value) || 0,
-                      })
-                    }
+                        yearlyChange: parseInt(rawValue) || 0,
+                      });
+                    }}
+                    onFocus={() => setFocusedField('yearlyChange')}
+                    onBlur={() => setFocusedField(null)}
                     placeholder="例: 1200000 (年120万積立)、-1200000 (年120万減少)"
                   />
                 </div>

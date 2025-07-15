@@ -126,6 +126,7 @@ export interface AmountSettingData {
 export interface AmountSettingFormData {
   startYear: number; // 年度(開始)
   endYear?: number; // 年度(終了) - 空欄可
+  baseAmount: number; // ベース金額 - 必須
   changeAmount?: number; // 増減金額 - 空欄可
   changeRate?: number; // 増減率(%) - 空欄可、整数のみ
   frequency: "yearly" | "monthly"; // 年額/月額
@@ -135,6 +136,7 @@ export interface AmountSettingFormData {
 export interface ValidationErrors {
   startYear?: string;
   endYear?: string;
+  baseAmount?: string;
   changeAmount?: string;
   changeRate?: string;
   general?: string;
