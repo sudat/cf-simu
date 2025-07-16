@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -17,6 +17,9 @@ import {
 import { Calendar } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { motion } from "framer-motion";
+import { usePlanStore } from "@/lib/store/plan-store";
+import { SimulationCalculator } from "@/lib/utils/simulation";
+import { useShallow } from "zustand/react/shallow";
 
 const chartConfig = {
   income: {
@@ -34,31 +37,66 @@ const MotionCard = motion(Card);
 export function CashflowChart() {
   const [period, setPeriod] = useState(10);
   const [isOpen, setIsOpen] = useState(false);
+  const [currentYear, setCurrentYear] = useState(2024); // SSR対応の初期値
 
   const periods = [5, 10, 20, 30, 50];
 
-  // サンプルデータ生成（積み重ね用）
-  const generateChartData = (years: number) => {
-    const data = [];
-    const currentYear = 2025;
+  // クライアント側でのみ現在の年度を取得
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
+  
+  // Zustandストアからデータを取得（useShallowでメモ化）
+  const planState = usePlanStore(
+    useShallow((state) => ({
+      plans: state.plans,
+      incomes: state.incomes,
+      expenses: state.expenses,
+      assets: state.assets,
+      debts: state.debts,
+    }))
+  );
+  
+  // 単一値の取得なのでuseShallowは不要
+  const activePlan = usePlanStore((state) => state.getActivePlan());
 
-    for (let i = 0; i <= years; i++) {
-      const year = currentYear + i;
-      const income = Math.round(600 * Math.pow(1.03, i)); // 年3%増
-      const expense = Math.round(450 * Math.pow(1.025, i)); // 年2.5%増
+  // 実際のデータに基づいてチャートデータを生成
+  const chartData = useMemo(() => {
+    if (!activePlan) {
+      // アクティブプランがない場合はサンプルデータ
+      const data = [];
 
-      data.push({
-        year: year.toString(),
-        income,
-        expense,
-        net: income - expense,
-      });
+      for (let i = 0; i <= period; i++) {
+        const year = currentYear + i;
+        const income = Math.round(600 * Math.pow(1.03, i));
+        const expense = Math.round(450 * Math.pow(1.025, i));
+
+        data.push({
+          year: year.toString(),
+          income,
+          expense,
+          net: income - expense,
+        });
+      }
+
+      return data;
     }
 
-    return data;
-  };
+    // 実際のシミュレーションデータを計算
+    const simulationResults = SimulationCalculator.calculateSimulation(
+      planState,
+      activePlan,
+      period,
+      currentYear
+    );
 
-  const chartData = generateChartData(period);
+    return simulationResults.map((result) => ({
+      year: result.year.toString(),
+      income: Math.round(result.income / 10000), // 万円単位に変換
+      expense: Math.round(result.expense / 10000), // 万円単位に変換
+      net: Math.round(result.netIncome / 10000), // 万円単位に変換
+    }));
+  }, [planState, activePlan, period, currentYear]);
 
   return (
     <MotionCard
@@ -71,7 +109,7 @@ export function CashflowChart() {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle className="text-lg font-semibold text-gray-800">
-              収支
+              収支 {activePlan ? `(${activePlan.name})` : "(サンプルデータ)"}
             </CardTitle>
           </div>
           <div className="flex gap-2 items-center">

@@ -73,6 +73,16 @@ export function AmountDialog({
   useUnifiedForm = false,
   onSaveUnified,
 }: AmountDialogProps) {
+  // SSR対応のための現在年度管理
+  const [currentYear, setCurrentYear] = useState(2024);
+
+  // クライアント側でのみ現在の年度を取得
+  useEffect(() => {
+    const year = new Date().getFullYear();
+    setCurrentYear(year);
+    // 統合フォームの開始年度も更新
+    setUnifiedData(prev => ({ ...prev, startYear: year }));
+  }, []);
   // フロー項目の状態
   const [flowData, setFlowData] = useState<FlowItemDetail>({
     startYear: 2024,
@@ -93,7 +103,7 @@ export function AmountDialog({
 
   // 統合フォーム用の状態
   const [unifiedData, setUnifiedData] = useState<AmountSettingFormData>({
-    startYear: new Date().getFullYear(),
+    startYear: currentYear,
     endYear: undefined,
     baseAmount: 0,
     changeAmount: undefined,
@@ -192,7 +202,7 @@ export function AmountDialog({
           setUnifiedData(convertLegacyToUnified(dataToUse));
         } else {
           setUnifiedData({
-            startYear: new Date().getFullYear(),
+            startYear: currentYear,
             endYear: undefined,
             baseAmount: 0,
             changeAmount: undefined,
@@ -236,6 +246,7 @@ export function AmountDialog({
     convertLegacyToUnified,
     itemId,
     planName,
+    currentYear,
   ]);
 
   // 統合フォームのバリデーション
@@ -307,7 +318,7 @@ export function AmountDialog({
       | "changeRate"
   ) => {
     if (value === "") {
-      if (field === "startYear") return new Date().getFullYear();
+      if (field === "startYear") return currentYear;
       if (field === "baseAmount") return 0;
       return undefined;
     }
@@ -315,7 +326,7 @@ export function AmountDialog({
     const numValue = parseInt(value);
 
     if (isNaN(numValue)) {
-      if (field === "startYear") return new Date().getFullYear();
+      if (field === "startYear") return currentYear;
       if (field === "baseAmount") return 0;
       return undefined;
     }
