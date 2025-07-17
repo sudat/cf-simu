@@ -101,6 +101,10 @@ export function CurrentPlanCard() {
           };
           openAddPlan(data?.itemId || "", data?.itemName || "");
         }}
+        onPlanSelected={(planName) => {
+          console.log('[CurrentPlanCard] プラン選択通知:', planName);
+          // プラン選択後、AmountDialogが開かれた際に最新状態を反映するための準備
+        }}
       />
 
       <AddPlanDialog

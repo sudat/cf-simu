@@ -28,6 +28,7 @@ interface PlanManagementDialogProps {
   onOpenChange: (open: boolean) => void;
   itemName?: string;
   onAddPlan?: () => void;
+  onPlanSelected?: (planName: string) => void;
 }
 
 // 削除確認ダイアログ
@@ -73,6 +74,7 @@ export function PlanManagementDialog({
   onOpenChange,
   itemName = "項目",
   onAddPlan,
+  onPlanSelected,
 }: PlanManagementDialogProps) {
   const {
     getAvailablePlans,
@@ -96,7 +98,27 @@ export function PlanManagementDialog({
 
   // プラン選択（項目別プラン管理）
   const handleSelectPlan = (planName: string) => {
-    setItemActivePlan(itemName, planName);
+    const result = setItemActivePlan(itemName, planName);
+    if (result.success) {
+      onPlanSelected?.(planName);
+
+      // プラン変更イベントを発行
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("plan-changed", {
+            detail: { itemName, planName },
+          })
+        );
+      }
+
+      if (process.env.NODE_ENV === "development") {
+        console.log("[PlanManagementDialog] プラン選択:", {
+          itemName,
+          selectedPlan: planName,
+          success: result.success,
+        });
+      }
+    }
   };
 
   // インライン編集開始

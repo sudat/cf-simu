@@ -117,6 +117,7 @@ export function AmountDialog({
   // フォーカス状態管理（どのフィールドがフォーカスされているか）
   // const [focusedField, setFocusedField] = useState<string | null>(null);
 
+
   // 統合フォームから既存型への変換
   const convertUnifiedToLegacy = useCallback(
     (data: AmountSettingFormData): FlowItemDetail | StockItemDetail => {

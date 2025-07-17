@@ -19,6 +19,7 @@ import {
 import { AddItemDialog } from "./add-item-dialog";
 import { usePlanStore } from "@/lib/store/plan-store";
 import type { PlanStore } from "@/lib/store/plan-store";
+import { PlanNameBadge } from "./amount-dialog/components/PlanNameBadge";
 
 interface PlanDialogProps {
   open: boolean;
@@ -70,6 +71,7 @@ export function PlanDialog({
   const assets = usePlanStore((s: PlanStore) => s.assets);
   const debts = usePlanStore((s: PlanStore) => s.debts);
   const addItem = usePlanStore((s: PlanStore) => s.addItem);
+  const getItemActivePlan = usePlanStore((s: PlanStore) => s.getItemActivePlan);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | null>(
@@ -141,8 +143,15 @@ export function PlanDialog({
               key={item.id}
               className="flex items-center justify-between p-3 bg-white/60 backdrop-blur-md border border-white/30 rounded-xl"
             >
-              <span className="text-gray-800">{item.name}</span>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-800">{item.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <PlanNameBadge 
+                  planName={getItemActivePlan(item.name).name}
+                  isDefault={getItemActivePlan(item.name).isDefault}
+                />
+                <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="ghost"
@@ -161,6 +170,7 @@ export function PlanDialog({
                 >
                   <Settings className="w-4 h-4" />
                 </Button>
+                </div>
               </div>
             </div>
           ))}

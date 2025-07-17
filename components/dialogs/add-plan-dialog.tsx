@@ -32,7 +32,7 @@ export function AddPlanDialog({
   onAdd,
 }: AddPlanDialogProps) {
   const [planName, setPlanName] = useState("");
-  const { addItemPlan, lastError, clearError } = usePlanStore();
+  const { addItemPlan, setItemActivePlan, lastError, clearError } = usePlanStore();
 
   // ダイアログが開かれるたびにフォームをリセット
   useEffect(() => {
@@ -49,6 +49,27 @@ export function AddPlanDialog({
     const result = addItemPlan(itemName, planName.trim());
 
     if (result.success) {
+      // プラン追加後、自動的にアクティブプランに設定
+      const setActiveResult = setItemActivePlan(itemName, planName.trim());
+      
+      if (setActiveResult.success) {
+        // プラン変更イベントを発行
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('plan-changed', {
+            detail: { itemName, planName: planName.trim() }
+          }));
+        }
+      }
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AddPlanDialog] プラン追加後のアクティブプラン設定:', {
+          itemName,
+          planName: planName.trim(),
+          addResult: result,
+          setActiveResult
+        });
+      }
+
       const data: AddPlanData = {
         itemId,
         planName: planName.trim(),
