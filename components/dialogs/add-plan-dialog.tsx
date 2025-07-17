@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AddPlanData } from "@/lib/types";
+import { usePlanStore } from "@/lib/store/plan-store";
+import { AlertCircle } from "lucide-react";
 
 interface AddPlanDialogProps {
   open: boolean;
@@ -30,24 +32,32 @@ export function AddPlanDialog({
   onAdd,
 }: AddPlanDialogProps) {
   const [planName, setPlanName] = useState("");
+  const { addItemPlan, lastError, clearError } = usePlanStore();
 
   // ダイアログが開かれるたびにフォームをリセット
   useEffect(() => {
     if (open) {
       setPlanName("");
+      clearError(); // エラー状態もクリア
     }
-  }, [open]);
+  }, [open, clearError]);
 
   const handleAdd = () => {
-    if (!itemId || !planName.trim()) return;
+    if (!itemName || !planName.trim()) return;
 
-    const data: AddPlanData = {
-      itemId,
-      planName: planName.trim(),
-    };
+    // 項目別プラン追加を実行（重複チェックも含む）
+    const result = addItemPlan(itemName, planName.trim());
 
-    onAdd?.(data);
-    onOpenChange(false);
+    if (result.success) {
+      const data: AddPlanData = {
+        itemId,
+        planName: planName.trim(),
+      };
+
+      onAdd?.(data);
+      onOpenChange(false);
+    }
+    // エラーの場合はlastErrorが設定されるので、UIで表示される
   };
 
   const handleCancel = () => {
@@ -87,10 +97,21 @@ export function AddPlanDialog({
             />
           </div>
 
+          {/* 項目別対応のエラーメッセージ表示 */}
+          {lastError && (
+            <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 p-3 rounded-lg">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{lastError}</span>
+            </div>
+          )}
+
           <div className="text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
             <div className="font-medium mb-1">プラン名の例:</div>
             <div>• コンサバプラン</div>
             <div>• 積極投資プラン</div>
+            <div className="mt-2 text-blue-600">
+              ※ このプランは「{itemName}」項目でのみ利用できます
+            </div>
           </div>
         </div>
 

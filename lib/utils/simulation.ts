@@ -18,17 +18,17 @@ export class SimulationCalculator {
     for (let i = 0; i <= years; i++) {
       const year = startYear + i;
       
-      // 収入計算
-      const income = this.calculateYearlyIncome(planState, activePlan.name, year);
+      // 収入計算（項目別アクティブプランを考慮）
+      const income = this.calculateYearlyIncome(planState, year);
       
-      // 支出計算
-      const expense = this.calculateYearlyExpense(planState, activePlan.name, year);
+      // 支出計算（項目別アクティブプランを考慮）
+      const expense = this.calculateYearlyExpense(planState, year);
       
-      // 資産計算
-      const assets = this.calculateYearlyAssets(planState, activePlan.name, year);
+      // 資産計算（項目別アクティブプランを考慮）
+      const assets = this.calculateYearlyAssets(planState, year);
       
-      // 負債計算
-      const debts = this.calculateYearlyDebts(planState, activePlan.name, year);
+      // 負債計算（項目別アクティブプランを考慮）
+      const debts = this.calculateYearlyDebts(planState, year);
       
       results.push({
         year,
@@ -45,59 +45,107 @@ export class SimulationCalculator {
   }
 
   /**
-   * 指定年度の収入を計算
+   * 指定年度の収入を計算（項目別アクティブプランを考慮）
    */
   private static calculateYearlyIncome(
     planState: PlanState,
-    planName: string,
     year: number
   ): number {
     let totalIncome = 0;
 
-    for (const [, item] of Object.entries(planState.incomes)) {
-      const setting = item.settings[planName] as FlowItemDetail | undefined;
-      if (!setting) continue;
+    for (const [itemName, item] of Object.entries(planState.incomes)) {
+      // 項目別アクティブプランを取得
+      const activePlanName = planState.plans[itemName]?.activePlan || 'デフォルトプラン';
+      const setting = item.settings[activePlanName] as FlowItemDetail | undefined;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[収入計算] ${itemName}: アクティブプラン="${activePlanName}"`, {
+          利用可能プラン: planState.plans[itemName]?.availablePlans,
+          全設定データ: item.settings,
+          使用中設定データ: setting,
+          年: year,
+        });
+      }
+      
+      if (!setting) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[収入計算] ${itemName}: プラン"${activePlanName}"の設定が見つかりません`);
+        }
+        continue;
+      }
 
       const amount = this.calculateFlowAmount(setting, year);
       totalIncome += amount;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[収入計算] ${itemName}: ${year}年の金額=${amount.toLocaleString()}円`);
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[収入計算] ${year}年の総収入: ${totalIncome.toLocaleString()}円`);
     }
 
     return totalIncome;
   }
 
   /**
-   * 指定年度の支出を計算
+   * 指定年度の支出を計算（項目別アクティブプランを考慮）
    */
   private static calculateYearlyExpense(
     planState: PlanState,
-    planName: string,
     year: number
   ): number {
     let totalExpense = 0;
 
-    for (const [, item] of Object.entries(planState.expenses)) {
-      const setting = item.settings[planName] as FlowItemDetail | undefined;
-      if (!setting) continue;
+    for (const [itemName, item] of Object.entries(planState.expenses)) {
+      // 項目別アクティブプランを取得
+      const activePlanName = planState.plans[itemName]?.activePlan || 'デフォルトプラン';
+      const setting = item.settings[activePlanName] as FlowItemDetail | undefined;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[支出計算] ${itemName}: アクティブプラン="${activePlanName}"`, {
+          利用可能プラン: planState.plans[itemName]?.availablePlans,
+          設定データ: setting,
+          年: year,
+        });
+      }
+      
+      if (!setting) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[支出計算] ${itemName}: プラン"${activePlanName}"の設定が見つかりません`);
+        }
+        continue;
+      }
 
       const amount = this.calculateFlowAmount(setting, year);
       totalExpense += amount;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[支出計算] ${itemName}: ${year}年の金額=${amount.toLocaleString()}円`);
+      }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[支出計算] ${year}年の総支出: ${totalExpense.toLocaleString()}円`);
     }
 
     return totalExpense;
   }
 
   /**
-   * 指定年度の資産を計算
+   * 指定年度の資産を計算（項目別アクティブプランを考慮）
    */
   private static calculateYearlyAssets(
     planState: PlanState,
-    planName: string,
     year: number
   ): number {
     let totalAssets = 0;
 
-    for (const [, item] of Object.entries(planState.assets)) {
-      const setting = item.settings[planName] as StockItemDetail | undefined;
+    for (const [itemName, item] of Object.entries(planState.assets)) {
+      // 項目別アクティブプランを取得
+      const activePlanName = planState.plans[itemName]?.activePlan || 'デフォルトプラン';
+      const setting = item.settings[activePlanName] as StockItemDetail | undefined;
       if (!setting) continue;
 
       const amount = this.calculateStockAmount(setting, year);
@@ -108,17 +156,18 @@ export class SimulationCalculator {
   }
 
   /**
-   * 指定年度の負債を計算
+   * 指定年度の負債を計算（項目別アクティブプランを考慮）
    */
   private static calculateYearlyDebts(
     planState: PlanState,
-    planName: string,
     year: number
   ): number {
     let totalDebts = 0;
 
-    for (const [, item] of Object.entries(planState.debts)) {
-      const setting = item.settings[planName] as StockItemDetail | undefined;
+    for (const [itemName, item] of Object.entries(planState.debts)) {
+      // 項目別アクティブプランを取得
+      const activePlanName = planState.plans[itemName]?.activePlan || 'デフォルトプラン';
+      const setting = item.settings[activePlanName] as StockItemDetail | undefined;
       if (!setting) continue;
 
       const amount = this.calculateStockAmount(setting, year);
@@ -185,7 +234,7 @@ export class SimulationCalculator {
   }
 
   /**
-   * 月別の収支データを計算（詳細分析用）
+   * 月別の収支データを計算（詳細分析用）（項目別アクティブプランを考慮）
    */
   static calculateMonthlyData(
     planState: PlanState,
@@ -198,18 +247,20 @@ export class SimulationCalculator {
       let monthlyIncome = 0;
       let monthlyExpense = 0;
       
-      // 収入計算（月別）
-      for (const [, item] of Object.entries(planState.incomes)) {
-        const setting = item.settings[activePlan.name] as FlowItemDetail | undefined;
+      // 収入計算（月別）（項目別アクティブプランを考慮）
+      for (const [itemName, item] of Object.entries(planState.incomes)) {
+        const activePlanName = planState.plans[itemName]?.activePlan || 'デフォルトプラン';
+        const setting = item.settings[activePlanName] as FlowItemDetail | undefined;
         if (!setting) continue;
         
         const monthlyAmount = this.calculateMonthlyFlowAmount(setting, year, month);
         monthlyIncome += monthlyAmount;
       }
       
-      // 支出計算（月別）
-      for (const [, item] of Object.entries(planState.expenses)) {
-        const setting = item.settings[activePlan.name] as FlowItemDetail | undefined;
+      // 支出計算（月別）（項目別アクティブプランを考慮）
+      for (const [itemName, item] of Object.entries(planState.expenses)) {
+        const activePlanName = planState.plans[itemName]?.activePlan || 'デフォルトプラン';
+        const setting = item.settings[activePlanName] as FlowItemDetail | undefined;
         if (!setting) continue;
         
         const monthlyAmount = this.calculateMonthlyFlowAmount(setting, year, month);

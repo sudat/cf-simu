@@ -12,7 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, CheckCircle, Edit, Trash2, X, Check, AlertCircle } from "lucide-react";
+import {
+  Plus,
+  CheckCircle,
+  Edit,
+  Trash2,
+  X,
+  Check,
+  AlertCircle,
+} from "lucide-react";
 import { usePlanStore } from "@/lib/store/plan-store";
 
 interface PlanManagementDialogProps {
@@ -67,10 +75,11 @@ export function PlanManagementDialog({
   onAddPlan,
 }: PlanManagementDialogProps) {
   const {
-    globalPlans,
-    deletePlan,
-    renamePlan,
-    setActivePlan,
+    getAvailablePlans,
+    deleteItemPlan,
+    setItemActivePlan,
+    renameItemPlan,
+    plans,
     lastError,
   } = usePlanStore();
 
@@ -82,9 +91,12 @@ export function PlanManagementDialog({
     name: string;
   } | null>(null);
 
-  // プラン選択
-  const handleSelectPlan = (planId: string) => {
-    setActivePlan(planId);
+  // 項目のプラン一覧を取得（新しいgetAvailablePlans関数を使用）
+  const itemPlans = getAvailablePlans(itemName);
+
+  // プラン選択（項目別プラン管理）
+  const handleSelectPlan = (planName: string) => {
+    setItemActivePlan(itemName, planName);
   };
 
   // インライン編集開始
@@ -93,13 +105,23 @@ export function PlanManagementDialog({
     setEditingName(currentName);
   };
 
-  // インライン編集確定
+  // インライン編集確定（項目別プラン管理対応）
   const handleEditConfirm = () => {
     if (editingPlanId && editingName.trim()) {
-      renamePlan(editingPlanId, editingName.trim());
+      const result = renameItemPlan(
+        itemName,
+        editingPlanId,
+        editingName.trim()
+      );
+      if (result.success) {
+        setEditingPlanId(null);
+        setEditingName("");
+      }
+      // エラーの場合はlastErrorが更新されるのでUIに表示される
+    } else {
+      // 空の名前の場合はキャンセル扱い
+      handleEditCancel();
     }
-    setEditingPlanId(null);
-    setEditingName("");
   };
 
   // インライン編集キャンセル
@@ -117,7 +139,7 @@ export function PlanManagementDialog({
   // 削除実行
   const handleDeleteConfirm = () => {
     if (planToDelete) {
-      deletePlan(planToDelete.id);
+      deleteItemPlan(itemName, planToDelete.name);
       setPlanToDelete(null);
     }
     setDeleteConfirmOpen(false);
@@ -167,8 +189,12 @@ export function PlanManagementDialog({
           )}
 
           <div className="space-y-3 py-4">
-            {globalPlans.map((plan) => {
-              const isActive = plan.isActive;
+            {itemPlans.map((plan) => {
+              // 特定項目のプラン管理か、グローバルプラン管理かで選択状態を判定
+              const isActive =
+                itemName !== "項目" && plans[itemName]
+                  ? plans[itemName].activePlan === plan.name
+                  : plan.isDefault;
               const isDefault = plan.isDefault;
               const isEditing = editingPlanId === plan.id;
 
@@ -180,20 +206,18 @@ export function PlanManagementDialog({
                       ? "border-blue-500 bg-blue-50"
                       : "border-gray-200 hover:bg-gray-50"
                   } ${isEditing ? "ring-2 ring-blue-300" : ""}`}
-                  onClick={() => !isEditing && handleSelectPlan(plan.id)}
+                  onClick={() => !isEditing && handleSelectPlan(plan.name)}
                 >
                   <CardContent className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-3 flex-1">
                       <div
                         className={`w-4 h-4 rounded-full flex items-center justify-center ${
-                          isActive
-                            ? "text-blue-500"
-                            : "text-gray-300"
+                          isActive ? "text-blue-500" : "text-gray-300"
                         }`}
                       >
                         <CheckCircle className="w-4 h-4" />
                       </div>
-                      
+
                       {isEditing ? (
                         <div className="flex items-center gap-2 flex-1">
                           <Input
@@ -275,7 +299,7 @@ export function PlanManagementDialog({
               );
             })}
 
-            {globalPlans.length === 0 && (
+            {itemPlans.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 プランがありません
               </div>

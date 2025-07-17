@@ -143,10 +143,55 @@ export interface ValidationErrors {
   general?: string;
 }
 
-// プラン定義
+// プラン定義（旧形式 - 後方互換性のため保持）
 export interface PlanDefinition {
   id: string;
   name: string;
   isDefault: boolean;
   isActive: boolean;
+}
+
+// 新しいプラン定義（項目別管理）
+export interface ItemPlanDefinition {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  itemName: string; // 所属項目名
+}
+
+// 新しいプラン状態（項目別管理）
+export interface NewPlanState {
+  plans: {
+    // key: 項目名 (e.g., '給与')
+    [itemName: string]: {
+      itemPlans: ItemPlanDefinition[]; // 項目別プラン定義
+      activePlan: string; // アクティブプラン名
+    };
+  };
+  incomes: CategoryItems; // 収入項目
+  expenses: CategoryItems; // 支出項目
+  assets: CategoryItems; // 資産項目
+  debts: CategoryItems; // 負債項目
+}
+
+// 移行エラーの重要度レベル
+export type MigrationErrorLevel = 'warning' | 'error' | 'fatal';
+
+// 移行エラーの詳細情報
+export interface MigrationErrorDetail {
+  level: MigrationErrorLevel;
+  code: string;
+  message: string;
+  userMessage: string;
+  timestamp: number;
+  context?: Record<string, unknown>;
+  recoverable: boolean;
+}
+
+// データ移行のためのユーティリティ型
+export interface MigrationResult {
+  success: boolean;
+  migratedData?: PlanState;
+  errors?: string[];
+  migrationErrors?: MigrationErrorDetail[];
 }

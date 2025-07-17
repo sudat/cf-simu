@@ -45,7 +45,7 @@ export function CashflowChart() {
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
   }, []);
-  
+
   // Zustandストアからデータを取得（useShallowでメモ化）
   const planState = usePlanStore(
     useShallow((state) => ({
@@ -56,14 +56,18 @@ export function CashflowChart() {
       debts: state.debts,
     }))
   );
-  
-  // 単一値の取得なのでuseShallowは不要
-  const activePlan = usePlanStore((state) => state.getActivePlan());
+
+  // グローバルプランは削除済み - 項目別プラン管理に移行
+  // const activePlan = usePlanStore((state) => state.getActivePlan());
 
   // 実際のデータに基づいてチャートデータを生成
   const chartData = useMemo(() => {
-    if (!activePlan) {
-      // アクティブプランがない場合はサンプルデータ
+    // 収支項目が存在しない場合はサンプルデータ
+    const hasIncomeData = Object.keys(planState.incomes).length > 0;
+    const hasExpenseData = Object.keys(planState.expenses).length > 0;
+
+    if (!hasIncomeData && !hasExpenseData) {
+      // 収支項目がない場合はサンプルデータ
       const data = [];
 
       for (let i = 0; i <= period; i++) {
@@ -82,10 +86,15 @@ export function CashflowChart() {
       return data;
     }
 
-    // 実際のシミュレーションデータを計算
+    // 実際のシミュレーションデータを計算（activePlanはダミーで渡す）
     const simulationResults = SimulationCalculator.calculateSimulation(
       planState,
-      activePlan,
+      {
+        id: "dummy",
+        name: "ダミー",
+        isDefault: true,
+        isActive: true,
+      },
       period,
       currentYear
     );
@@ -96,7 +105,7 @@ export function CashflowChart() {
       expense: Math.round(result.expense / 10000), // 万円単位に変換
       net: Math.round(result.netIncome / 10000), // 万円単位に変換
     }));
-  }, [planState, activePlan, period, currentYear]);
+  }, [planState, period, currentYear]);
 
   return (
     <MotionCard
@@ -109,7 +118,7 @@ export function CashflowChart() {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle className="text-lg font-semibold text-gray-800">
-              収支 {activePlan ? `(${activePlan.name})` : "(サンプルデータ)"}
+              収支
             </CardTitle>
           </div>
           <div className="flex gap-2 items-center">

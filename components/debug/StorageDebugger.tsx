@@ -104,7 +104,7 @@ export function StorageDebugger() {
               {JSON.stringify({
                 incomes: storeState.incomes,
                 expenses: storeState.expenses,
-                globalPlans: storeState.globalPlans
+                plans: storeState.plans
               }, null, 2)}
             </pre>
           </div>
