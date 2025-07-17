@@ -21,7 +21,7 @@ export function CurrentPlanCard() {
     DIALOG_IDS,
   } = usePlanDialogs();
 
-  const { addItemPlan, saveAmountSetting } = usePlanStore();
+  const { saveAmountSetting } = usePlanStore();
 
   return (
     <>
@@ -116,7 +116,7 @@ export function CurrentPlanCard() {
           (getDialogData(DIALOG_IDS.ADD_PLAN) as { itemName?: string })
             ?.itemName || "項目"
         }
-        onAdd={(data) => {
+        onAdd={() => {
           // AddPlanDialog内で既にaddItemPlanが実行されているため、ここでは実行しない
           goBack();
         }}
