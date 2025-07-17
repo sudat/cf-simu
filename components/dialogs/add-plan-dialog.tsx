@@ -61,6 +61,7 @@ export function AddPlanDialog({
   };
 
   const handleCancel = () => {
+    clearError(); // ダイアログを閉じる時にもエラーをクリア
     onOpenChange(false);
   };
 
@@ -75,7 +76,12 @@ export function AddPlanDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(open) => {
+      if (!open) {
+        clearError(); // ダイアログが閉じられる時にエラーをクリア
+      }
+      onOpenChange(open);
+    }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>プラン追加</DialogTitle>

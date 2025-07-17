@@ -26,6 +26,51 @@ export function StorageDebugger() {
     refreshLocalStorage();
   };
 
+  // 楽観プラン重複エラーの修復
+  const fixOptimisticPlanError = () => {
+    try {
+      const planStoreData = localStorage.getItem('plan-store');
+      if (!planStoreData) {
+        alert('LocalStorageにデータが見つかりません');
+        return;
+      }
+
+      const parsedData = JSON.parse(planStoreData);
+      let fixed = false;
+
+      // 全ての項目から「楽観」関連のプランを削除
+      const optimisticPlanNames = ['楽観', '楽観プラン', 'Optimistic', 'optimistic'];
+      
+      if (parsedData.state && parsedData.state.plans) {
+        Object.keys(parsedData.state.plans).forEach(itemName => {
+          optimisticPlanNames.forEach(planName => {
+            const plans = parsedData.state.plans[itemName];
+            if (plans.availablePlans.includes(planName)) {
+              // プランを削除
+              plans.availablePlans = plans.availablePlans.filter((p: string) => p !== planName);
+              // アクティブプランが削除された場合はデフォルトプランに戻す
+              if (plans.activePlan === planName) {
+                plans.activePlan = 'デフォルトプラン';
+              }
+              fixed = true;
+              console.log(`修復: 項目"${itemName}"からプラン"${planName}"を削除しました`);
+            }
+          });
+        });
+      }
+
+      if (fixed) {
+        localStorage.setItem('plan-store', JSON.stringify(parsedData));
+        alert('楽観プラン重複エラーを修復しました。ページをリロードします。');
+        window.location.reload();
+      } else {
+        alert('修復が必要な楽観プランは見つかりませんでした。');
+      }
+    } catch (error) {
+      alert(`修復中にエラーが発生しました: ${error}`);
+    }
+  };
+
   if (process.env.NODE_ENV !== 'development') {
     return null;
   }
@@ -83,10 +128,24 @@ export function StorageDebugger() {
                 border: 'none',
                 padding: '6px 12px',
                 borderRadius: '4px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                marginRight: '8px'
               }}
             >
               Clear
+            </button>
+            <button 
+              onClick={fixOptimisticPlanError}
+              style={{
+                backgroundColor: '#ffc107',
+                color: 'black',
+                border: 'none',
+                padding: '6px 12px',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Fix 楽観プラン
             </button>
           </div>
           

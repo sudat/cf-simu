@@ -661,16 +661,20 @@ export const usePlanStore = create<PlanStore>()(
       }
 
       const state = get();
+      const trimmedItemName = itemName.trim();
       
       // 項目が存在するかチェック
-      if (!state.plans[itemName.trim()]) {
+      if (!state.plans[trimmedItemName]) {
         const error = "指定された項目が見つかりません";
         set((state) => ({ ...state, lastError: error }));
         return { success: false, error };
       }
 
       // 同じ名前のプランが既に存在するかチェック
-      if (state.plans[itemName].availablePlans.includes(trimmedName)) {
+      const currentPlans = state.plans[trimmedItemName].availablePlans;
+      const planExists = currentPlans.includes(trimmedName);
+      
+      if (planExists) {
         const error = "同じ名前のプランが既に存在します";
         set((state) => ({ ...state, lastError: error }));
         return { success: false, error };
@@ -678,21 +682,72 @@ export const usePlanStore = create<PlanStore>()(
 
       // プランを追加
       set((state) => {
-        return {
+        const newState = {
           ...state,
           plans: {
             ...state.plans,
-            [itemName]: {
-              ...state.plans[itemName],
-              availablePlans: [...state.plans[itemName].availablePlans, trimmedName],
+            [itemName.trim()]: {
+              ...state.plans[itemName.trim()],
+              availablePlans: [...state.plans[itemName.trim()].availablePlans, trimmedName],
             },
           },
           lastError: null,
         };
+
+        // 実際の設定データも自動生成（setItemActivePlanのロジックを再利用）
+        let categoryKey: 'incomes' | 'expenses' | 'assets' | 'debts' | null = null;
+        if (state.incomes[itemName.trim()]) categoryKey = 'incomes';
+        else if (state.expenses[itemName.trim()]) categoryKey = 'expenses';
+        else if (state.assets[itemName.trim()]) categoryKey = 'assets';
+        else if (state.debts[itemName.trim()]) categoryKey = 'debts';
+
+        // カテゴリが見つかった場合、新プランのデフォルト設定を作成
+        if (categoryKey) {
+          const itemType = state[categoryKey][itemName.trim()].type;
+          let defaultSetting: FlowItemDetail | StockItemDetail;
+
+          if (itemType === 'flow') {
+            // デフォルトプランの設定をコピーして新しいプランのデフォルト設定を作成
+            const defaultPlanSetting = state[categoryKey][itemName.trim()].settings['デフォルトプラン'];
+            defaultSetting = defaultPlanSetting ? { ...defaultPlanSetting } : {
+              startYear: 2024,
+              amount: 0,
+              frequency: "monthly",
+              growthRate: 0,
+              yearlyChange: undefined,
+            };
+          } else {
+            // ストック項目の場合
+            const defaultPlanSetting = state[categoryKey][itemName.trim()].settings['デフォルトプラン'];
+            defaultSetting = defaultPlanSetting ? { ...defaultPlanSetting } : {
+              baseYear: 2024,
+              baseAmount: 0,
+              rate: 0,
+              yearlyChange: 0,
+            };
+          }
+
+          newState[categoryKey] = {
+            ...newState[categoryKey],
+            [itemName.trim()]: {
+              ...newState[categoryKey][itemName.trim()],
+              settings: {
+                ...newState[categoryKey][itemName.trim()].settings,
+                [trimmedName]: defaultSetting,
+              },
+            },
+          };
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[addItemPlan] ${itemName.trim()}: プラン"${trimmedName}"の設定データを作成しました`, defaultSetting);
+          }
+        }
+
+        return newState;
       });
 
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[addItemPlan] 項目"${itemName}"にプラン"${trimmedName}"を追加しました`);
+        console.log(`[addItemPlan] 項目"${itemName.trim()}"にプラン"${trimmedName}"を追加しました`);
       }
 
       return { success: true };

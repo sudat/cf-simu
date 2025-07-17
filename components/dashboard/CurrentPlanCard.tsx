@@ -117,13 +117,7 @@ export function CurrentPlanCard() {
             ?.itemName || "項目"
         }
         onAdd={(data) => {
-          const dialogData = getDialogData(DIALOG_IDS.ADD_PLAN) as {
-            itemName?: string;
-          };
-          const itemName = dialogData?.itemName;
-          if (itemName) {
-            addItemPlan(itemName, data.planName);
-          }
+          // AddPlanDialog内で既にaddItemPlanが実行されているため、ここでは実行しない
           goBack();
         }}
       />
